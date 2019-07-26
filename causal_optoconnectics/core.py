@@ -141,6 +141,17 @@ def calculate_regressors(x, y, stim_times, y_mu, y_sigma):
     return Z, X, Y
 
 
+def hit_rate(source, stim_times, mu, sigma):
+    stim_win = np.insert(
+        stim_times + mu - sigma,
+        np.arange(len(stim_times)) + 1,
+        stim_times + mu + sigma)
+    src_y = np.searchsorted(source, stim_win, side='left')
+    cnt_y = np.diff(src_y.reshape((int(len(src_y) / 2), 2)))
+    Y = cnt_y.flatten()
+    return sum(Y) / len(Y)
+
+
 def causal_connectivity(
     x, y, stim_times, x_mu, x_sigma, y_mu, y_sigma,
     n_bases=20, bin_size=1e-3, offset=1e-2):
