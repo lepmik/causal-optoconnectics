@@ -9,7 +9,9 @@ Confounding arises when there is a common drive that
 influences multiple neurons simultaneuously. For example, consider three neurons
 A, B, C, and S - the confounder (could be a neuron or stimulation or both),
 connected by the following graph:
+
 ![figure](images/graph-s-abc.png)
+
 Here we refer to A and B as (putative) upstream (presynaptic) neurons and C as
 a (postsynaptic) downstream neuron.
 
