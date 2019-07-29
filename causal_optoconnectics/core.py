@@ -209,6 +209,7 @@ def causal_connectivity(
     cutoff: float
         Maximal time of interest for spike times preceeding stimulus onset.
         Representing a cutof where all relative times larger is set to zero.
+
     Returns
     -------
     beta_IV : float
@@ -232,7 +233,7 @@ def causal_connectivity(
     idxs = index(Z, bin_size)
     Z_bases[:, :] = bases[idxs, :]
 
-    model = LogisticRegression(C=.1, solver='liblinear')
+    model = LogisticRegression(C=1e-5, solver='liblinear', penalty='l2')
     model.fit(Z_bases, X)
     X_hat = model.predict(Z_bases)
 
