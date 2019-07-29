@@ -154,22 +154,31 @@ def hit_rate(source, stim_times, mu, sigma):
 
 def causal_connectivity(
     x, y, stim_times, x_mu, x_sigma, y_mu, y_sigma,
-    n_bases=20, bin_size=1e-3, offset=1e-2):
-    '''Estimates causal connectivity between upstream and downstream neurons
-    using instrumental variables.
+    n_bases=20, bin_size=1e-3, offset=1e-2, cutoff=20e-3):
+    '''Estimates causal connectivity between upstream (x) and downstream (y)
+    neurons using a two-stage instrumental variables regression.
 
     Z --(instrument)--> X --(beta_IV)-->  Y
 
     Connectivity is calculated using a two stage instrumental variables (IV)
-    regression. First stage uses a logistic regression of the instrument (Z) on
-    the exogenous variable (X). The instrument consists of pre-stimulus spike
-    times of the upstrem neuron (x) represented by a raised cosine bases with
-    logarithmic stretching of time. This gives high fidelity close to stimulus
-    event time and increasingly course fidelity at longer time intervals.
-    The exogenous variable is a binary variable representing wether or not
+    regression.
+    First stage uses a logistic regression of the instrument (Z) on
+    the exogenous variable (X).
+    The instrument consists of pre-stimulus spike times of the upstrem neuron
+    (x) represented by a raised cosine bases with logarithmic stretching of
+    time.
+    This gives high fidelity close to stimulus event time and increasingly
+    course fidelity at larger time intervals.
+    The exogenous variable is a binary variable representing weather or not
     the stimulus response time is within `stim_times + x_mu ± x_sigma`.
     Second stage is a linear regression of the fitted values of X given by the
-    first stage and the slope (beta_IV)
+    first stage.
+    The result (beta_IV) is the causal influence of x on y with interpretation:
+
+    `beta_IV = (rate(y) - rate(y')) / (rate(x) + rate(stim_times))`.
+
+    Here `rate(.) = len(.) / stop_time` and the counter factual y' represents
+    y in the (non existing) world where x had not physically been connected to y.
 
     Parameters
     ----------
@@ -195,25 +204,35 @@ def causal_connectivity(
         [2 x 1] array containg [1st_peak,  last_peak], the peak
         (i.e. center) of the first and the last raised cosine basis vectors.
     offset: float
-        offset for log stretching of x axis:  y = log(t + offset)
+        Offset for log stretching of x axis:  y = log(t + offset)
         (larger offset -> more nearly linear stretching)
+    cutoff: float
+        Maximal time of interest for spike times preceeding stimulus onset.
+        Representing a cutof where all relative times larger is set to zero.
+    Returns
+    -------
+    beta_IV : float
+        The causal influence of x on y. With rate(y) and the counter factual
+        rate(y') (rate of y if x had not physically been connected to y)
     '''
     Z, X, Y = calculate_regressors(x, y, stim_times, y_mu, y_sigma)
 
     X = ((X > x_mu - x_sigma) & (X < x_mu + x_sigma)).astype(int)
+
+    if not any(np.diff(X)): # logit solver needs two classes
+        return np.nan
+
     Z = np.abs(Z)
-    max_time = Z.max()
 
-    time, bases, centers = raised_cosine(n_bases, bin_size, np.array([0, max_time]), offset)
+    time, bases, centers = raised_cosine(n_bases, bin_size, np.array([0, cutoff]), offset)
     Z_bases = np.zeros((len(Z), n_bases))
-
     def index(t, bin_size):
-        return np.ceil(t / bin_size).astype(int)
+        return [np.minimum(np.ceil(t_ / bin_size).astype(int), len(time)-1) for t_ in t]
 
     idxs = index(Z, bin_size)
     Z_bases[:, :] = bases[idxs, :]
 
-    model = LogisticRegression(C=1e5, solver='liblinear')
+    model = LogisticRegression(C=.1, solver='liblinear')
     model.fit(Z_bases, X)
     X_hat = model.predict(Z_bases)
 
