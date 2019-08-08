@@ -7,11 +7,11 @@ def test_correlogram():
     t1 = np.arange(0, .5, .1)
     t2 = np.arange(0.1, .6, .1)
     limit = 1
-    binsize = .1
+    bin_size = .1
     counts_true = np.array(
         [0, 0, 0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 4, 3, 2, 1, 0, 0, 0, 0])
     counts, bins = correlogram(
-        t1=t1, t2=t2, binsize=binsize, limit=limit, auto=False)
+        t1=t1, t2=t2, bin_size=bin_size, limit=limit, auto=False)
     assert np.array_equal(counts, counts_true)
     # The interpretation of this result is that there are 5 occurences where
     # in the bin 0 to 0.1, i.e.
@@ -28,6 +28,6 @@ def test_correlogram_fft():
     t1 = np.arange(0, .5, .1)
     t2 = np.arange(0.1, .6, .1)
     limit = 1
-    binsize = .1
+    bin_size = .1
     from causal_optoconnectics.cch import histogram, xcorr
-    bins = np.arange(-limit, limit + binsize, binsize)
+    bins = np.arange(-limit, limit + bin_size, bin_size)

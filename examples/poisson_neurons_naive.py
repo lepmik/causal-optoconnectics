@@ -4,7 +4,7 @@ import pandas as pd
 from matplotlib import cm
 from causal_optoconnectics import causal_connectivity
 from causal_optoconnectics.cch import fit_latency, transfer_probability
-from generator import generate_neurons, generate_stim_times
+from causal_optoconnectics.generator import generate_neurons, generate_stim_times
 from tqdm import tqdm
 
 
