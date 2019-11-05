@@ -118,7 +118,7 @@ def transfer_probability(x, y, bin_size, limit, hollow_fraction, width,
     """
     cch, bins = correlogram(
         x, y, bin_size=bin_size, limit=limit, density=False)
-    bins = bins[1:]
+    bins = bins[:-1]
 
     cch_s = cch_convolve(
         cch=cch, width=width, hollow_fraction=hollow_fraction)
