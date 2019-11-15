@@ -1,7 +1,5 @@
 import numpy as np
 import scipy.stats as st
-import scipy.integrate as si
-from sklearn.linear_model import LogisticRegression # must come before nest import
 
 
 def find_first_response_spike(x, y, s):
@@ -44,7 +42,7 @@ def find_first_response_spike(x, y, s):
     return Z, X, Y, s
 
 
-def find_response_spikes(x, y, s, dt, dz):
+def find_response_spikes(x, y, s, z1, z2, dt):
     '''Calculate upstream spike time before and after stimulus and downstream
     count. Responses in are counted within
     `y >= stim_times + y_mu - y_sigma`
@@ -74,7 +72,7 @@ def find_response_spikes(x, y, s, dt, dz):
         # left	a[i-1] < v <= a[i]
         # right	a[i-1] <= v < a[i]
         # t - dz < z <= t
-        idx_z = np.searchsorted(x, [t - dz, t], side='right')
+        idx_z = np.searchsorted(x, [t - z1, t - z2], side='right')
         Z.append(np.diff(idx_z) > 0)
         # t < x <= t + dt
         idx_x = np.searchsorted(x, [t, t + dt], side='right')
@@ -88,7 +86,51 @@ def find_response_spikes(x, y, s, dt, dz):
     return Z, X, Y
 
 
-def causal_connectivity(x, y, s, x1, x2, y1, y2, dt, dz):
+# def find_response_bool(x, y, s, z1, z2, x1, x2, y1, y2):
+#     '''Calculate upstream spike time before and after stimulus and downstream
+#     count. Responses in are counted within
+#     `y >= stim_times + y_mu - y_sigma`
+#     and `y < stim_times + y_mu + y_sigma`.
+#
+#     Parameters
+#     ----------
+#     x : array
+#         Upstream spike times
+#     y : array
+#         Downstream spike times
+#     s : array
+#         Stimulation onset times
+#     Returns
+#     -------
+#     Z : array
+#         Upstream times (< 0) before stimulus (referenced at 0)
+#     X : array
+#         Upstream times (> 0) after stimulus (referenced at 0)
+#     Y : array
+#         Downstream times (> 0) after stimulus (referenced at 0)
+#     '''
+#     s = s.astype(float)
+#     X, Y, Z = [], [], []
+#     for t in s:
+#         # searchsorted:
+#         # left	a[i-1] < v <= a[i]
+#         # right	a[i-1] <= v < a[i]
+#         # t - dz < z <= t
+#         idx_z = np.searchsorted(x, [t - dz, t], side='right')
+#         Z.append(np.diff(idx_z) > 0)
+#         # t < x <= t + dt
+#         idx_x = np.searchsorted(x, [t, t + dt], side='right')
+#         X.append(x[idx_x[0]: idx_x[1]] - t)
+#         # t < y <= t + dt
+#         idx_y = np.searchsorted(y, [t, t + dt], side='right')
+#         Y.append(y[idx_y[0]: idx_y[1]] - t)
+#     Z = np.array(Z, dtype=bool).ravel()
+#     X = np.array(X)
+#     Y = np.array(Y)
+#     return Z, X, Y
+
+
+def causal_connectivity_kde(x, y, s, x1, x2, y1, y2, dt, dz):
     Z, X, Y = find_response_spikes(x, y, s, dt, dz)
     #X = [t for trial in X for t in trial]
     X = np.array([any((t >= x1) & (t <= x2)) for t in X])
@@ -107,7 +149,7 @@ def causal_connectivity(x, y, s, x1, x2, y1, y2, dt, dz):
     return Py0 - Py00 - Py1 + Py11
 
 
-def probable_connectivity(x, y, s, x1, x2, y1, y2, dt):
+def probable_connectivity_kde(x, y, s, x1, x2, y1, y2, dt):
     _, X, Y = find_response_spikes(x, y, s, dt, 1)
     #X = [t for trial in X for t in trial]
     X = np.array([any((t >= x1) & (t <= x2)) for t in X])
