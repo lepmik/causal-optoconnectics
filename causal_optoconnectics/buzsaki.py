@@ -107,6 +107,13 @@ def transfer_probability(x, y, bin_size, limit, hollow_fraction, width,
         Average time for downstream spikes (y) in response to upstream spikes (x)
     y_sigma : float
         Standard deviation of downstream response times to upstream spikes (x).
+    Returns
+    -------
+    trans_prob : float
+    ppeak : float
+    pfast : float
+    ptime: float
+    cmax: float
 
     References
     ----------
