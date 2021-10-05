@@ -11,13 +11,13 @@ def prune(a, ref):
     return d
 
 
-def generate_stim_times(stim_rate, stim_isi_min, stop_time):
+def generate_poisson_stim_times(stim_rate, stim_isi_min, stop_time):
     stim_times = np.sort(np.random.uniform(
         0, stop_time, stim_rate * stop_time))
     return prune(stim_times, stim_isi_min)
 
 
-def generate_neurons(stim_times, make_post=False, response='gaussian', **p):
+def simulate_simple_conditional_response(stim_times, make_post=False, response='gaussian', **p):
     n_stim = len(stim_times)
     idxs = np.random.permutation(np.arange(n_stim).astype(int))
     n_stim_spikes = int(n_stim * p['stim_hit_chance'])

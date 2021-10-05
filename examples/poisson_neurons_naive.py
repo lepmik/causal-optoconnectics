@@ -4,7 +4,7 @@ import pandas as pd
 from matplotlib import cm
 from causal_optoconnectics import causal_connectivity
 from causal_optoconnectics.cch import fit_latency, transfer_probability
-from causal_optoconnectics.generator import generate_neurons, generate_stim_times
+from causal_optoconnectics.generator import simulate_simple_conditional_response, generate_poisson_stim_times
 from tqdm import tqdm
 
 
@@ -39,12 +39,12 @@ trans_prob_params = {
     'width': 100
 }
 
-stim_times = generate_stim_times(**stim_params)
+stim_times = generate_poisson_stim_times(**stim_params)
 
-A_spikes, C_spikes = generate_neurons(
+A_spikes, C_spikes = simulate_simple_conditional_response(
     stim_times, make_post=True, response=response, **neuron_params)
 
-B_spikes = generate_neurons(
+B_spikes = simulate_simple_conditional_response(
     stim_times, make_post=False, response=response, **neuron_params)
 
 trans_prob_AC,_,_,_,_ = transfer_probability(
@@ -71,12 +71,12 @@ results_hit_chance = []
 for h in tqdm(np.arange(0, 1.1, .1)):
     neuron_params['pre_hit_chance'] = h
 
-    stim_times = generate_stim_times(**stim_params)
+    stim_times = generate_poisson_stim_times(**stim_params)
 
-    A_spikes, C_spikes = generate_neurons(
+    A_spikes, C_spikes = simulate_simple_conditional_response(
         stim_times, make_post=True, response=response, **neuron_params)
 
-    B_spikes = generate_neurons(
+    B_spikes = simulate_simple_conditional_response(
         stim_times, make_post=False, response=response, **neuron_params)
 
     trans_prob_AC,_,_,_,_ = transfer_probability(
@@ -129,12 +129,12 @@ for h in tqdm(np.arange(100, 6100, 10)):
     stim_params['stop_time'] = h
     neuron_params['stop_time'] = stim_params['stop_time']
 
-    stim_times = generate_stim_times(**stim_params)
+    stim_times = generate_poisson_stim_times(**stim_params)
 
-    A_spikes, C_spikes = generate_neurons(
+    A_spikes, C_spikes = simulate_simple_conditional_response(
         stim_times, make_post=True, response=response, **neuron_params)
 
-    B_spikes = generate_neurons(
+    B_spikes = simulate_simple_conditional_response(
         stim_times, make_post=False, response=response, **neuron_params)
 
     trans_prob_AC = causal_connectivity(
