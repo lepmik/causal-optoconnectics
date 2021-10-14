@@ -205,7 +205,7 @@ def compute_trials_multi(X, n_neurons, stim_index, n1=-10, n2=10):
     from functools import partial
     with multiprocessing.Pool() as p:
         samples = p.map(partial(
-            _compute_trials, n_neurons=n_neurons, stim_index=stim_index, n1=n1, n2=n2), X)
+            compute_trials, n_neurons=n_neurons, stim_index=stim_index, n1=n1, n2=n2), X)
 
     trials = defaultdict(list)
     for ni in range(n_neurons):
