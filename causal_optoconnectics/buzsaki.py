@@ -28,7 +28,7 @@ def cch_convolve(cch, width, hollow_fraction):
     # reversed in time, and prepended to the cch prior to convolving"
     cch_padded[0:len_padd] = cch[1:len_padd+1][::-1]
     cch_padded[len_padd: - len_padd] = cch
-    # # "Likewise, the lastW/2 bins aresymmetrically appended to the cch."
+    # # "Likewise, the lastW/2 bins are symmetrically appended to the cch."
     cch_padded[-len_padd:] = cch[-len_padd-1:-1][::-1]
     # convolve cch with kernel
     result = scs.fftconvolve(cch_padded, kernel, mode='valid')

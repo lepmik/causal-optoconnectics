@@ -25,5 +25,5 @@ setup(
     extras_require=extras_require,
     packages=find_packages(),
     include_package_data=True,
-    version='0.1',
+    version='1.0',
 )
