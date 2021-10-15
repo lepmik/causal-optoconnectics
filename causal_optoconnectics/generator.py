@@ -145,7 +145,7 @@ def generate_poisson_stim_times(period, low, high, size):
 
 def construct_additional_filters(W, indices, scale, strength):
     W = np.concatenate((W, np.zeros((1, W.shape[1], W.shape[2]))), 0)
-    W = np.concatenate((W, np.zeros((W.shape[0], 1, W.shape[2]))), 1)
+    W = np.concatenate((W, np.zeros((W.shape[0], 1, W.shape[2]))), 1)#TODO do we really need this one??
     for j in indices:
         W[-1, j, np.arange(scale)] = strength
     return W
