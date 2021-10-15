@@ -145,7 +145,7 @@ def generate_poisson_stim_times(period, low, high, size):
 
 def construct_additional_filters(W, indices, scale, strength):
     W = np.concatenate((W, np.zeros((1, W.shape[1], W.shape[2]))), 0)
-    W = np.concatenate((W, np.zeros((W.shape[0], 1, W.shape[2]))), 1)#TODO do we really need this one??
+    # W = np.concatenate((W, np.zeros((W.shape[0], 1, W.shape[2]))), 1)#TODO do we really need this one??
     for j in indices:
         W[-1, j, np.arange(scale)] = strength
     return W
@@ -204,6 +204,7 @@ def simulate(W, W_0, inputs, params, pbar=None):
 
 
 def _multiprocess_simulate(i, **kwargs):
+    from multiprocessing import current_process
     np.random.seed()
     if kwargs['pbar'] is not None:
         current = current_process()
@@ -224,10 +225,16 @@ if __name__ == '__main__':
         'ref_scale': 10,
         'abs_ref_scale': 3,
         'spike_scale': 5,
-        'stim_scale': 2,
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
-        'stim_strength': 4,
+        'stim_scale': 2,
+        'stim_strength': 5,
+        'stim_period': 50,
+        'stim_isi_min': 10,
+        'stim_isi_max': 200,
+        'drive_scale': 10,
+        'drive_strength': -5,
+        'drive_period': 100,
         'alpha': 0.2,
         'glorot_normal': {
             'mu': 0,
@@ -241,13 +248,13 @@ if __name__ == '__main__':
         #     'low': 0,
         #     'high': 1
         # },
-        'n_time_step': int(1e6)
+        'n_time_step': int(2e6)
     }
     n_neurons = params['n_neurons']
 
     data_path = pathlib.Path('datasets/')
     data_path.mkdir(parents=True, exist_ok=True)
-    fname = 'poisson_multi_simulation_{}_{}_{}'.format(
+    fname = 'confounding_simulation_{}_{}_{}'.format(
         params['n_neurons'],
         params['stim_strength'],
         params['glorot_normal']['sigma']
@@ -264,7 +271,20 @@ if __name__ == '__main__':
         W, excit_idx[:params['n_stim']],
         params['stim_scale'], params['stim_strength']
     )
-    stimulus = generate_regular_stim_times(params)
+    # set stim
+    binned_stim_times = generate_poisson_stim_times(
+        params['stim_period'],
+        params['stim_isi_min'],
+        params['stim_isi_max'],
+        params['n_time_step']
+    )
+
+    binned_drive = generate_regular_stim_times(
+        params['drive_period'],
+        params['n_time_step']
+    )
+    stimulus = np.concatenate((binned_stim_times, binned_drive), 0)
+
     freeze_support()
     pool = Pool(
         initializer=tqdm.set_lock,
