@@ -26,7 +26,7 @@ if __name__ == '__main__':
     from multiprocessing import Pool, freeze_support, current_process, RLock
     params = {
         'const': 5.,
-        'n_neurons': 10,
+        'n_neurons': 100,
         'n_stim': 5,
         'dt': 1e-3,
         'ref_scale': 10,
@@ -55,7 +55,7 @@ if __name__ == '__main__':
         #     'low': 0,
         #     'high': 1
         # },
-        'n_time_step': int(2e6)
+        'n_time_step': int(5e6)
     }
     n_neurons = params['n_neurons']
 

@@ -39,8 +39,8 @@ def construct(params):
     return W, W_0, stimulus
 
 if __name__ == '__main__':
-    data_path = pathlib.Path('datasets/sweep_1')
-    data_path.mkdir(parents=True, exist_ok=True)
+    data_path = pathlib.Path('datasets/sweep_2')
+    data_path.mkdir(parents=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     params = {
