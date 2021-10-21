@@ -128,7 +128,7 @@ def decompress_events(events, n_neurons, n_time_steps):
     return x
 
 
-def compute_trials(events, n_neurons, stim_index, n1=-10, n2=10):
+def compute_trials(events, neurons, stim_index, n1=-10, n2=10):
     """Compute trials from spike indices.
 
     Parameters
@@ -136,8 +136,9 @@ def compute_trials(events, n_neurons, stim_index, n1=-10, n2=10):
     events : array, (n_events, 2)
         Array of unit ids in first column and corresponding spike-time indices
         on second column. Assumes neurons are indexed 0:n_neurons.
-    n_neurons : int
-        Number of neurons, assumes neurons in `events` are indexed 0:n_neurons.
+    neurons : int or array
+        Neurons to compute,
+        if int assumes neurons in `events` are indexed 0:n_neurons.
     stim_index : type
         The index in `events` that indicate stimulus onsets.
     n1 : type
@@ -157,10 +158,11 @@ def compute_trials(events, n_neurons, stim_index, n1=-10, n2=10):
     >>> trials = compute_trials(events, 9, 10)
 
     """
+    neurons = neurons if not isinstance(neurons, int) else range(neurons)
     from collections import defaultdict
     stim_indices = events[events[:, 0]==stim_index, 1]
     trials = defaultdict(list)
-    for ni in range(n_neurons):
+    for ni in neurons:
         xx = events[events[:, 0]==ni, 1]
         xxx = np.zeros((len(stim_indices), abs(n1 - n2)))
         for ii, i in enumerate(stim_indices):
@@ -170,7 +172,7 @@ def compute_trials(events, n_neurons, stim_index, n1=-10, n2=10):
     return trials
 
 
-def compute_trials_multi(X, n_neurons, stim_index, n1=-10, n2=10):
+def compute_trials_multi(events, neurons, stim_index, n1=-10, n2=10):
     """Compute trials from spike indices from multiple datasets, using
     multiprocessing.
 
@@ -179,8 +181,9 @@ def compute_trials_multi(X, n_neurons, stim_index, n1=-10, n2=10):
     events : array, (n_events, 2)
         Array of unit ids in first column and corresponding spike-time indices
         on second column. Assumes neurons are indexed 0:n_neurons.
-    n_neurons : int
-        Number of neurons, assumes neurons in `events` are indexed 0:n_neurons.
+    neurons : int or array
+        Neurons to compute,
+        if int assumes neurons in `events` are indexed 0:n_neurons.
     stim_index : type
         The index in `events` that indicate stimulus onsets.
     n1 : type
@@ -200,15 +203,17 @@ def compute_trials_multi(X, n_neurons, stim_index, n1=-10, n2=10):
     >>> trials = compute_trials_multi(events, 9, 10)
 
     """
+    neurons = neurons if not isinstance(neurons, int) else range(neurons)
     import multiprocessing
     from collections import defaultdict
     from functools import partial
     with multiprocessing.Pool() as p:
         samples = p.map(partial(
-            compute_trials, n_neurons=n_neurons, stim_index=stim_index, n1=n1, n2=n2), X)
+            compute_trials, n_neurons=n_neurons, stim_index=stim_index,
+            n1=n1, n2=n2), events)
 
     trials = defaultdict(list)
-    for ni in range(n_neurons):
+    for ni in neurons:
         for sample in samples:
             trials[ni].append(sample[ni])
         trials[ni] = np.concatenate(trials[ni])

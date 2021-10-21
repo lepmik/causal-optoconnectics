@@ -68,9 +68,9 @@ if __name__ == '__main__':
         },
         'n_time_step': int(1e6)
     }
-    n_neuronss = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]
+    n_neuronss = [10, 20, 30, 40, 50]
     stim_strengths = [1, 2, 3, 4, 5, 6, 7, 8]
-    sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+    sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7]
     if rank == 0:
         connectivity = {}
     else:
@@ -78,10 +78,7 @@ if __name__ == '__main__':
     for n_neurons in n_neuronss:
         for stim_strength in stim_strengths:
             for sigma in sigmas:
-                if sigma > 7:
-                    params['const'] = 5.5
-                else:
-                    params['const'] = 5.
+                params['const'] = 5.
                 params['glorot_normal']['sigma'] = sigma
                 params['stim_strength'] = stim_strength
                 params['n_neurons'] = n_neurons
