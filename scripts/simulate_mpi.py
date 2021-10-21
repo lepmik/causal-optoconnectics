@@ -1,5 +1,4 @@
 import numpy as np
-from functools import partial
 import pathlib
 from mpi4py import MPI
 
@@ -12,55 +11,73 @@ from causal_optoconnectics.generator import (
     generate_poisson_stim_times,
     generate_regular_stim_times,
     generate_oscillatory_drive,
+    dales_law_transform,
 )
 
+def construct(params):
+    stimulus = generate_poisson_stim_times(
+        params['stim_period'],
+        params['stim_isi_min'],
+        params['stim_isi_max'],
+        params['n_time_step']
+    )
+    W_0 = construct_connectivity_matrix(params)
+    W_0 = dales_law_transform(W_0)
+    W, W_0, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
+    W = construct_additional_filters(
+        W, excit_idx[:params['n_stim']], params['stim_scale'],
+        params['stim_strength'])
+
+    return W, W_0, stimulus
+
 if __name__ == '__main__':
-    data_path = pathlib.Path('datasets/')
+    data_path = pathlib.Path('datasets/sweep_1')
+    data_path.mkdir(parents=True, exist_ok=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-
+    np.random.seed()
     params = {
-        'const': 5.,
+        'const': 5,
         'n_neurons': 10,
         'n_stim': 5,
         'dt': 1e-3,
         'ref_scale': 10,
         'abs_ref_scale': 3,
         'spike_scale': 5,
-        'stim_scale': 2,
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
-        'stim_strength': 4,
+        'stim_scale': 2,
+        'stim_strength': 5,
+        'stim_period': 50,
+        'stim_isi_min': 10,
+        'stim_isi_max': 200,
         'alpha': 0.2,
         'glorot_normal': {
             'mu': 0,
-            'sigma': 6
+            'sigma': 5
         },
         'n_time_step': int(1e6)
     }
     n_neurons = params['n_neurons']
+    stim_strength = params['stim_strength']
+    sigma = params['sigma']
 
     data_path.mkdir(parents=True, exist_ok=True)
-    fname = 'rank_{}_{}_{}_{}'.format(
-        rank,
-        params['n_neurons'],
-        params['stim_strength'],
-        params['glorot_normal']['sigma']
-    )
-
-    assert not (data_path / fname).exists()
     if rank == 0:
-        W, W_0, excit_idx, inhib_idx = construct_connectivity_matrix(params)
-        connectivity = (W, W_0, excit_idx, inhib_idx)
+        connectivity = {}
     else:
         connectivity = None
+
+    path =  f'n{n_neurons}_ss{stim_strength}_s{sigma}'.replace('.','')
+    (data_path / path).mkdir(exist_ok=True)
+    if rank == 0:
+        W, W_0, stimulus = construct(params)
+        connectivity[path] = (W, W_0, stimulus)
     connectivity = comm.bcast(connectivity, root=0)
-    W, W_0, excit_idx, inhib_idx = connectivity
-
-    res = simulate(W=W, params=params)
-
+    W, W_0, stimulus = connectivity[path]
+    res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params)
     np.savez(
-        data_path / fname,
+        data_path / path/ f'rank_{rank}',
         data=res,
         W=W,
         W_0=W_0,

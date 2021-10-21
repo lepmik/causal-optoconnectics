@@ -11,6 +11,7 @@ from causal_optoconnectics.generator import (
     generate_poisson_stim_times,
     generate_regular_stim_times,
     generate_oscillatory_drive,
+    dales_law_transform,
 )
 
 def construct(params):
@@ -34,6 +35,7 @@ if __name__ == '__main__':
     data_path.mkdir(parents=True, exist_ok=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
+    np.random.seed()
     params = {
         'const': 5,
         'n_neurons': None,
