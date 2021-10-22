@@ -37,11 +37,11 @@ def construct(params):
     W = construct_additional_filters(
         W, range(len(W_0)), params['drive_scale'], params['drive_strength'])
 
-    return W, W_0, stimulus
+    return W, W_0, stimulus, excit_idx, inhib_idx
 
 if __name__ == '__main__':
     data_path = pathlib.Path('datasets/sweep_2')
-    data_path.mkdir(parents=True)
+    data_path.mkdir(parents=True, exist_ok=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     np.random.seed()
@@ -87,10 +87,10 @@ if __name__ == '__main__':
                 path =  f'n{n_neurons}_ss{stim_strength}_s{sigma}'.replace('.','')
                 (data_path / path).mkdir(exist_ok=True)
                 if rank == 0:
-                    W, W_0, stimulus = construct(params)
-                    connectivity[path] = (W, W_0, stimulus)
+                    W, W_0, stimulus, excit_idx, inhib_idx = construct(params)
+                    connectivity[path] = (W, W_0, stimulus, excit_idx, inhib_idx)
                 connectivity = comm.bcast(connectivity, root=0)
-                W, W_0, stimulus = connectivity[path]
+                W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
                 res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params)
                 np.savez(
                     data_path / path/ f'rank_{rank}',
