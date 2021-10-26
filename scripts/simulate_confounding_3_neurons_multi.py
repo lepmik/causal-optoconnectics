@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import default_rng, SeedSequence
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -43,8 +44,13 @@ if __name__ == '__main__':
         'drive_strength': -5,
         'drive_period': 100,
         'alpha': 0.2,
-        'n_time_step': int(1e6)
+        'n_time_step': int(1e6),
+        'seed': 12345
     }
+    ss = SeedSequence(params['seed'])
+    num_cores = multiprocessing.cpu_count()
+    child_seeds = ss.spawn(num_cores)
+    rng = default_rng(params['seed'])
 
     W_0 = np.array([
         [0, 0, 0],
@@ -57,7 +63,8 @@ if __name__ == '__main__':
         params['stim_period'],
         params['stim_isi_min'],
         params['stim_isi_max'],
-        params['n_time_step']
+        params['n_time_step'],
+        rng=rng
     )
 
     binned_drive = generate_regular_stim_times(
@@ -66,7 +73,6 @@ if __name__ == '__main__':
     )
     stimulus = np.concatenate((binned_stim_times, binned_drive), 0)
 
-    num_cores = multiprocessing.cpu_count()
 
     for conn_strength in np.arange(0,8,1):
         W_0[1, 2] = conn_strength
@@ -89,7 +95,7 @@ if __name__ == '__main__':
                     params=params,
                     pbar=True
                 ),
-                range(num_cores))
+                child_seeds)
 
         ############## SAVE ###########################
         fname = f'conn_{conn_strength}'.replace('.', ' ')

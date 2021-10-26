@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import SeedSequence, default_rng
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -18,16 +19,19 @@ from causal_optoconnectics.generator import (
     generate_regular_stim_times,
     generate_oscillatory_drive,
     _multiprocess_simulate,
-    dales_law_transform
+    dales_law_transform,
+    sparsify
 )
 
-def construct(params, sparsity=0):
+def construct(params, rng=None):
+    rng = default_rng() if rng is None else rng
     # set stim
     binned_stim_times = generate_poisson_stim_times(
         params['stim_period'],
         params['stim_isi_min'],
         params['stim_isi_max'],
-        params['n_time_step']
+        params['n_time_step'],
+        rng=rng
     )
 
     binned_drive = generate_regular_stim_times(
@@ -36,15 +40,7 @@ def construct(params, sparsity=0):
     )
     stimulus = np.concatenate((binned_stim_times, binned_drive), 0)
     W_0 = construct_connectivity_matrix(params)
-    indices = np.unravel_index(
-        np.random.choice(
-            np.arange(np.prod(W_0.shape)),
-            size=int(sparsity*np.prod(W_0.shape)),
-            replace=False
-        ),
-        W_0.shape
-    )
-    W_0[indices] = 0
+    W_0 = sparsify(W_0, params['sparsity'])
     W_0 = dales_law_transform(W_0)
     W, W_0, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_additional_filters(
@@ -53,7 +49,7 @@ def construct(params, sparsity=0):
     W = construct_additional_filters(
         W, range(len(W_0)), params['drive_scale'], params['drive_strength'])
 
-    return W, W_0, stimulus
+    return W, W_0, stimulus, excit_idx, inhib_idx
 
 if __name__ == '__main__':
     data_path = pathlib.Path('datasets/')
@@ -82,16 +78,19 @@ if __name__ == '__main__':
             'mu': 0,
             'sigma': 5
         },
-        'n_time_step': int(1e6)
+        'n_time_step': int(1e6),
+        'sparsity': 0.8,
+        'seed': 12345,
     }
-
-    sparsity = 0.8
+    ss = SeedSequence(params['seed'])
+    num_cores = multiprocessing.cpu_count()
+    child_seeds = ss.spawn(num_cores)
+    rng = default_rng(params['seed'])
 
     fname =  f'sparsity_{sparsity:.1f}'.replace('.','')
     (data_path / fname).mkdir(exist_ok=True)
 
-    W, W_0, stimulus = construct(params, sparsity=sparsity)
-    num_cores = multiprocessing.cpu_count()
+    W, W_0, stimulus, excit_idx, inhib_idx = construct(params, rng=rng)
     pool = Pool(
         initializer=tqdm.set_lock,
         initargs=(RLock(),),
@@ -107,7 +106,7 @@ if __name__ == '__main__':
                 params=params,
                 pbar=True
             ),
-            range(num_cores))
+            child_seeds)
 
     np.savez(
         data_path / fname,

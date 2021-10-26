@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import default_rng
 import pathlib
 from mpi4py import MPI
 
@@ -14,13 +15,14 @@ from causal_optoconnectics.generator import (
     dales_law_transform,
 )
 
-def construct(params):
+def construct(params, rng):
     # set stim
     binned_stim_times = generate_poisson_stim_times(
         params['stim_period'],
         params['stim_isi_min'],
         params['stim_isi_max'],
-        params['n_time_step']
+        params['n_time_step'],
+        rng=rng
     )
 
     binned_drive = generate_regular_stim_times(
@@ -37,14 +39,14 @@ def construct(params):
     W = construct_additional_filters(
         W, range(len(W_0)), params['drive_scale'], params['drive_strength'])
 
-    return W, W_0, stimulus
+    return W, W_0, stimulus, excit_idx, inhib_idx
 
 if __name__ == '__main__':
     data_path = pathlib.Path('datasets/sweep_2')
     data_path.mkdir(parents=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
-    np.random.seed()
+
     params = {
         'const': 5,
         'n_neurons': None,
@@ -68,15 +70,17 @@ if __name__ == '__main__':
             'mu': 0,
             'sigma': None
         },
-        'n_time_step': int(1e6)
+        'n_time_step': int(1e6),
+        'seed': 12345 + rank
     }
     n_neuronss = [10, 20, 30, 40, 50]
     stim_strengths = [1, 2, 3, 4, 5, 6, 7, 8]
     sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7]
-    if rank == 0:
-        connectivity = {}
-    else:
-        connectivity = None
+
+    rng = default_rng(params['seed'])
+
+    connectivity = {}
+
     for n_neurons in n_neuronss:
         for stim_strength in stim_strengths:
             for sigma in sigmas:
@@ -85,15 +89,21 @@ if __name__ == '__main__':
                 params['stim_strength'] = stim_strength
                 params['n_neurons'] = n_neurons
                 path =  f'n{n_neurons}_ss{stim_strength}_s{sigma}'.replace('.','')
+
                 (data_path / path).mkdir(exist_ok=True)
+                fname = data_path / path/ f'rank_{rank}.npz'
+                if fname.exists():
+                    continue
+
                 if rank == 0:
-                    W, W_0, stimulus = construct(params)
-                    connectivity[path] = (W, W_0, stimulus)
+                    connectivity[path] = construct(params, rng=rng)
+
                 connectivity = comm.bcast(connectivity, root=0)
-                W, W_0, stimulus = connectivity[path]
-                res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params)
+                W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
+                res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
+
                 np.savez(
-                    data_path / path/ f'rank_{rank}',
+                    fname,
                     data=res,
                     W=W,
                     W_0=W_0,

@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.random import SeedSequence, default_rng
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -47,16 +48,14 @@ if __name__ == '__main__':
             'mu': 0,
             'sigma': 6
         },
-        # 'normal': {
-        #     'mu': 0,
-        #     'sigma': 5
-        # },
-        # 'uniform': {
-        #     'low': 0,
-        #     'high': 1
-        # },
-        'n_time_step': int(5e6)
+        'n_time_step': int(5e6),
+        'seed': 12345
     }
+    ss = SeedSequence(params['seed'])
+    num_cores = multiprocessing.cpu_count()
+    child_seeds = ss.spawn(num_cores)
+    rng = default_rng(params['seed'])
+
     n_neurons = params['n_neurons']
 
     data_path = pathlib.Path('datasets/')
@@ -69,9 +68,7 @@ if __name__ == '__main__':
 
     assert not (data_path / fname).exists()
 
-    num_cores = multiprocessing.cpu_count()
-
-    W_0 = construct_connectivity_matrix(params)
+    W_0 = construct_connectivity_matrix(params, rng=rng)
     W_0 = dales_law_transform(W_0)
     W, W_0, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_additional_filters(
@@ -85,7 +82,8 @@ if __name__ == '__main__':
         params['stim_period'],
         params['stim_isi_min'],
         params['stim_isi_max'],
-        params['n_time_step']
+        params['n_time_step'],
+        rng=rng
     )
 
     binned_drive = generate_regular_stim_times(
@@ -110,7 +108,7 @@ if __name__ == '__main__':
                 params=params,
                 pbar=True
             ),
-            range(num_cores))
+            child_seeds)
 
     np.savez(
         data_path / fname,

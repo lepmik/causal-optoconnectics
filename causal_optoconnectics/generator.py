@@ -1,16 +1,18 @@
 import scipy.stats as st
 import numpy as np
+from numpy.random import default_rng
 from tqdm import tqdm
 from functools import partial
 import pathlib
 from .tools import roll_pad
 
 
-def clipped_lognormal(mu, sigma, size, low, high):
-    sample = np.random.lognormal(mu, sigma, size)
+def clipped_lognormal(mu, sigma, size, low, high, rng=None):
+    rng = default_rng() if rng is None else rng
+    sample = rng.lognormal(mu, sigma, size)
     while ((sample < low) | (sample > high)).any():
         mask = list(np.where((sample < low) | (sample > high)))
-        subsample = np.random.lognormal(mu, sigma, size)
+        subsample = rng.lognormal(mu, sigma, size)
         submask = list(np.where((subsample > low) & (subsample < high)))
         n = min(len(mask[0]), len(submask[0]))
         for i in range(len(mask)):
@@ -21,12 +23,13 @@ def clipped_lognormal(mu, sigma, size, low, high):
     return sample
 
 
-def clipped_poisson(mu, size, low, high, max_iter=100000):
-    truncated = st.poisson.rvs(mu, size=size)
+def clipped_poisson(mu, size, low, high, max_iter=100000, rng=None):
+    rng = default_rng() if rng is None else rng
+    truncated = rng.poisson(mu, size=size)
     itr = 0
     while ((truncated < low) | (truncated > high)).any():
         mask, = np.where((truncated < low) | (truncated > high))
-        temp = st.poisson.rvs(mu, size=size)
+        temp = rng.poisson(mu, size=size)
         temp_mask, = np.where((temp >= low) & (temp <= high))
         mask = mask[:len(temp_mask)]
         truncated[mask] = temp[:len(mask)]
@@ -71,7 +74,8 @@ def simulate_simple_conditional_response(stim_times, make_post=False, response='
         return pre_spikes
 
 
-def construct_connectivity_matrix(params):
+def construct_connectivity_matrix(params, rng=None):
+    rng = default_rng() if rng is None else rng
     if 'uniform' in params:
         W_0 = np.random.uniform(
             low=params['uniform']['low'],
@@ -100,6 +104,19 @@ def dales_law_transform(W_0):
     # Dale's law
     W_0 = np.concatenate((W_0*(W_0>0), W_0*(W_0<0)), 0)
     W_0 = np.concatenate((W_0, W_0), 1)
+    return W_0
+
+
+def sparsify(W_0, sparsity, rng):
+    indices = np.unravel_index(
+        rng.choice(
+            np.arange(np.prod(W_0.shape)),
+            size=int(sparsity * np.prod(W_0.shape)),
+            replace=False
+        ),
+        W_0.shape
+    )
+    W_0[indices] = 0
     return W_0
 
 
@@ -132,10 +149,10 @@ def generate_regular_stim_times(period, size):
     return binned_stim_times
 
 
-def generate_poisson_stim_times(period, low, high, size):
+def generate_poisson_stim_times(period, low, high, size, rng=None):
     isi = []
     while sum(isi) < size:
-        isi += clipped_poisson(period, 100, low, high).tolist()
+        isi += clipped_poisson(period, 100, low, high, rng=rng).tolist()
     cum = np.cumsum(isi)
     cum = cum[cum < size].astype(int)
     binned_stim_times = np.zeros(size)
@@ -158,7 +175,8 @@ def generate_oscillatory_drive(params):
     return binned_stim_times
 
 
-def simulate(W, W_0, inputs, params, pbar=None):
+def simulate(W, W_0, inputs, params, pbar=None, rng=None):
+    rng = default_rng() if rng is None else rng
     pbar = pbar if pbar is not None else lambda x:x
     x = np.zeros((len(W), params['ref_scale']))
     rand_init = np.random.randint(0, 2, params['n_neurons'])
@@ -204,8 +222,9 @@ def simulate(W, W_0, inputs, params, pbar=None):
 
 
 def _multiprocess_simulate(i, **kwargs):
+    kwargs['rng'] = default_rng(i) # seed each process
+    # nice progressbar for each process
     from multiprocessing import current_process
-    np.random.seed()
     if kwargs['pbar'] is not None:
         current = current_process()
         pos = current._identity[0] - 1
