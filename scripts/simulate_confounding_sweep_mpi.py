@@ -43,7 +43,7 @@ def construct(params, rng):
 
 if __name__ == '__main__':
     data_path = pathlib.Path('datasets/sweep_2')
-    data_path.mkdir(parents=True)
+    data_path.mkdir(parents=True, exist_ok=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
