@@ -77,19 +77,19 @@ def simulate_simple_conditional_response(stim_times, make_post=False, response='
 def construct_connectivity_matrix(params, rng=None):
     rng = default_rng() if rng is None else rng
     if 'uniform' in params:
-        W_0 = np.random.uniform(
+        W_0 = rng.uniform(
             low=params['uniform']['low'],
             high=params['uniform']['high'],
             size=(params['n_neurons'], params['n_neurons'])
         )
     elif 'normal' in params:
-        W_0 = np.random.normal(
+        W_0 = rng.normal(
             loc=params['normal']['mu'],
             scale=params['normal']['sigma'],
             size=(params['n_neurons'], params['n_neurons'])
         )
     elif 'glorot_normal' in params:
-        W_0 = np.random.normal(
+        W_0 = rng.normal(
             loc=params['glorot_normal']['mu'],
             scale=params['glorot_normal']['sigma'] / np.sqrt(params['n_neurons']),
             size=(params['n_neurons'], params['n_neurons'])
@@ -179,7 +179,7 @@ def simulate(W, W_0, inputs, params, pbar=None, rng=None):
     rng = default_rng() if rng is None else rng
     pbar = pbar if pbar is not None else lambda x:x
     x = np.zeros((len(W), params['ref_scale']))
-    rand_init = np.random.randint(0, 2, params['n_neurons'])
+    rand_init = rng.integers(0, 2, params['n_neurons'])
     # if W_0 has dales law transform n_neurons = len(W_0) / 2 and the first
     # half of neurons are excitatory and the second half is their inhibitory
     # copies and thus have to be identically initialized
@@ -190,6 +190,7 @@ def simulate(W, W_0, inputs, params, pbar=None, rng=None):
 
     x[len(W_0):] = inputs[:, :x.shape[1]]
     spikes = []
+    ref_scale_range = np.arange(params['ref_scale'])
 
     for t in pbar(range(params['n_time_step'] - 1)):
 
@@ -202,11 +203,7 @@ def simulate(W, W_0, inputs, params, pbar=None, rng=None):
 
         activation = np.dot(W.T, x)
 
-        activation = activation[
-            np.arange(params['ref_scale']),
-            :,
-            np.arange(params['ref_scale'])[::-1]
-        ].sum(0)
+        activation = activation[ref_scale_range,:,ref_scale_range[::-1]].sum(0)
 
         activation = activation - params['const']
 
@@ -215,8 +212,55 @@ def simulate(W, W_0, inputs, params, pbar=None, rng=None):
 
         x = roll_pad(x, -1)
 
-        x[:len(W_0), -1] = np.random.binomial(
+        x[:len(W_0), -1] = rng.binomial(
             1, np.exp(activation) / (np.exp(activation) + 1), size=len(W_0)
+        ) # binomial GLM with logit link function (binomial regression)
+    return np.array(spikes)
+
+
+def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu'):
+    import torch
+    pbar = pbar if pbar is not None else lambda x:x
+
+    W = torch.tensor(W).to(device)
+    x = torch.zeros((len(W), params['ref_scale'])).to(device)
+    rand_init = torch.randint(0, 2, params['n_neurons'])
+    # if W_0 has dales law transform n_neurons = len(W_0) / 2 and the first
+    # half of neurons are excitatory and the second half is their inhibitory
+    # copies and thus have to be identically initialized
+    if len(W_0) == params['n_neurons'] * 2:
+        rand_init = torch.cat((rand_init, rand_init))
+
+    x[:len(W_0), -1] = rand_init
+
+    x[len(W_0):] = inputs[:, :x.shape[1]]
+    spikes = []
+
+
+    ref_scale_range = torch.arange(params['ref_scale']).to(device)
+
+    for t in pbar(range(params['n_time_step'] - 1)):
+
+        if t >= params['ref_scale']:
+            x[len(W_0):] = inputs[:, t-params['ref_scale']+1: t+1]
+
+        # if any spikes store spike indices and time
+        if x[:,-1].any():
+            spikes.extend([(idx, t) for idx in np.where(x[:,-1])[0]])
+
+        activation = torch.einsum('kji,kl->ijl',W,x)
+
+        activation =  activation[ref_scale_range,:,ref_scale_range[::-1]].sum(0)
+
+        activation = activation - params['const']
+
+        #Stimulus has no activation
+        activation = activation[:len(W_0)]
+
+        x = torch.roll(x, -1, 0)
+
+        x[:len(W_0), -1] = torch.bernoulli(
+            torch.exp(activation) / (torch.exp(activation) + 1)
         ) # binomial GLM with logit link function (binomial regression)
     return np.array(spikes)
 
