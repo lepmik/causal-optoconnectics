@@ -218,13 +218,15 @@ def simulate(W, W_0, inputs, params, pbar=None, rng=None):
     return np.array(spikes)
 
 
-def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu'):
+def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu', rng=None):
     import torch
+    rng = torch.Generator() if rng is None else rng
     pbar = pbar if pbar is not None else lambda x:x
 
-    W = torch.tensor(W).to(device)
-    x = torch.zeros((len(W), params['ref_scale'])).to(device)
-    rand_init = torch.randint(0, 2, (params['n_neurons']))
+    W = torch.as_tensor(W).to(device, dtype=torch.float32)
+    inputs = torch.as_tensor(inputs, dtype=torch.float32).to(device)
+    x = torch.zeros((len(W), params['ref_scale']), dtype=torch.float32, device=device)
+    rand_init = torch.randint(0, 2, (params['n_neurons'],), generator=rng, device=device)
     # if W_0 has dales law transform n_neurons = len(W_0) / 2 and the first
     # half of neurons are excitatory and the second half is their inhibitory
     # copies and thus have to be identically initialized
@@ -238,7 +240,7 @@ def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu'):
 
 
     ref_scale_range = torch.arange(params['ref_scale']).to(device)
-
+    ref_scale_range_flip = ref_scale_range.flip(0)
     for t in pbar(range(params['n_time_step'] - 1)):
 
         if t >= params['ref_scale']:
@@ -246,11 +248,11 @@ def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu'):
 
         # if any spikes store spike indices and time
         if x[:,-1].any():
-            spikes.extend([(idx, t) for idx in np.where(x[:,-1])[0]])
+            spikes.extend([(idx, t) for idx in torch.where(x[:,-1])[0]])
 
         activation = torch.einsum('kji,kl->ijl',W,x)
 
-        activation =  activation[ref_scale_range,:,ref_scale_range[::-1]].sum(0)
+        activation =  activation[ref_scale_range,:,ref_scale_range_flip].sum(0)
 
         activation = activation - params['const']
 
@@ -260,9 +262,10 @@ def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu'):
         x = torch.roll(x, -1, 0)
 
         x[:len(W_0), -1] = torch.bernoulli(
-            torch.exp(activation) / (torch.exp(activation) + 1)
+            torch.exp(activation) / (torch.exp(activation) + 1),
+            generator=rng
         ) # binomial GLM with logit link function (binomial regression)
-    return np.array(spikes)
+    return torch.tensor(spikes).cpu().numpy()
 
 
 def _multiprocess_simulate(i, **kwargs):

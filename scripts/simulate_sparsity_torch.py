@@ -1,5 +1,6 @@
 import numpy as np
-from numpy.random import SeedSequence, default_rng
+import torch
+from numpy.random import default_rng
 import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
@@ -18,9 +19,9 @@ from causal_optoconnectics.generator import (
     generate_poisson_stim_times,
     generate_regular_stim_times,
     generate_oscillatory_drive,
-    _multiprocess_simulate,
     dales_law_transform,
-    sparsify
+    sparsify,
+    simulate_torch
 )
 
 def construct(params, rng=None):
@@ -51,6 +52,19 @@ def construct(params, rng=None):
 
     return W, W_0, stimulus, excit_idx, inhib_idx
 
+def _multiprocess_simulate(i, **kwargs):
+    rng = torch.Generator(device=kwargs['device'])
+    rng.manual_seed(i)
+    kwargs['rng'] = rng # seed each process
+    # nice progressbar for each process
+    from multiprocessing import current_process
+    if kwargs['pbar'] is not None:
+        current = current_process()
+        pos = current._identity[0] - 1
+
+        kwargs['pbar'] = partial(tqdm, position=pos)
+    return simulate_torch(**kwargs)
+
 if __name__ == '__main__':
     data_path = pathlib.Path('datasets/')
     data_path.mkdir(parents=True, exist_ok=True)
@@ -78,16 +92,14 @@ if __name__ == '__main__':
             'mu': 0,
             'sigma': 5
         },
-        'n_time_step': int(1e6),
+        'n_time_step': int(20e6),
         'sparsity': 0.8,
         'seed': 12345,
     }
-    ss = SeedSequence(params['seed'])
-    num_cores = multiprocessing.cpu_count()
-    child_seeds = ss.spawn(num_cores)
+    num_cores = 5#multiprocessing.cpu_count()
     rng = default_rng(params['seed'])
 
-    fname =  f'sparsity_{sparsity:.1f}'.replace('.','')
+    fname =  f'sparsity_{params["sparsity"]:.1f}'.replace('.','')
     (data_path / fname).mkdir(exist_ok=True)
 
     W, W_0, stimulus, excit_idx, inhib_idx = construct(params, rng=rng)
@@ -104,9 +116,10 @@ if __name__ == '__main__':
                 W_0=W_0,
                 inputs=stimulus,
                 params=params,
-                pbar=True
+                pbar=True,
+                device='cuda'
             ),
-            child_seeds)
+            range(params['seed'],params['seed']+num_cores))
 
     np.savez(
         data_path / fname,
