@@ -224,7 +224,7 @@ def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu'):
 
     W = torch.tensor(W).to(device)
     x = torch.zeros((len(W), params['ref_scale'])).to(device)
-    rand_init = torch.randint(0, 2, params['n_neurons'])
+    rand_init = torch.randint(0, 2, (params['n_neurons']))
     # if W_0 has dales law transform n_neurons = len(W_0) / 2 and the first
     # half of neurons are excitatory and the second half is their inhibitory
     # copies and thus have to be identically initialized

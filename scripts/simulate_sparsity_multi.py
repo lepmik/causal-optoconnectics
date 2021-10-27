@@ -40,7 +40,7 @@ def construct(params, rng=None):
     )
     stimulus = np.concatenate((binned_stim_times, binned_drive), 0)
     W_0 = construct_connectivity_matrix(params)
-    W_0 = sparsify(W_0, params['sparsity'])
+    W_0 = sparsify(W_0, params['sparsity'], rng)
     W_0 = dales_law_transform(W_0)
     W, W_0, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_additional_filters(
