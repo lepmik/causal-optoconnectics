@@ -248,7 +248,7 @@ def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu', rng=None):
 
         # if any spikes store spike indices and time
         if x[:,-1].any():
-            spikes.extend([(idx, t) for idx in torch.where(x[:,-1])[0]])
+            spikes.extend([(idx.cpu(), t) for idx in torch.where(x[:,-1])[0]])
 
         activation = torch.einsum('kji,kl->ijl',W,x)
 
