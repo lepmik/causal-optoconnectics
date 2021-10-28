@@ -100,7 +100,6 @@ if __name__ == '__main__':
     rng = default_rng(params['seed'])
 
     fname =  f'sparsity_{params["sparsity"]:.1f}'.replace('.','')
-    (data_path / fname).mkdir(exist_ok=True)
 
     W, W_0, stimulus, excit_idx, inhib_idx = construct(params, rng=rng)
     pool = Pool(
