@@ -101,6 +101,27 @@ def construct_connectivity_matrix(params, rng=None, self_connections=False):
     return W_0
 
 
+def distance_wrapped(i, j, length):
+    a = (length / 2)
+    d = abs(i - j)
+    d[d > a] = abs(d[d > a] - length)
+    return d
+
+def mexican_hat(i, j, a, sigma_1, sigma_2, n_neurons):
+    d = distance_wrapped(i, j, n_neurons)
+    first = np.exp(- d**2 / (2 * sigma_1**2))
+    second = a * np.exp(- d**2 / (2 * sigma_2**2))
+    return first - second
+
+def construct_mexican_hat_connectivity(params):
+    W = np.zeros((params['n_neurons'],params['n_neurons']))
+    j = np.arange(params['n_neurons'])
+    for i in range(params['n_neurons']):
+        W[i,j] = mexican_hat(i, j, *map(params.get, ['mex_a', 'mex_sigma_1', 'mex_sigma_2', 'n_neurons']))
+    np.fill_diagonal(W, 0)
+    return W
+
+
 def dales_law_transform(W_0):
     # Dale's law
     W_0 = np.concatenate((W_0*(W_0>0), W_0*(W_0<0)), 0)
@@ -175,7 +196,7 @@ def generate_oscillatory_drive(params):
     return binned_stim_times
 
 
-def simulate(W, W_0, inputs, params, pbar=None, rng=None):
+def simulate(W, W_0, params, inputs=None, pbar=None, rng=None):
     rng = default_rng() if rng is None else rng
     pbar = pbar if pbar is not None else lambda x:x
     x = np.zeros((len(W), params['ref_scale']))
@@ -188,13 +209,15 @@ def simulate(W, W_0, inputs, params, pbar=None, rng=None):
 
     x[:len(W_0), -1] = rand_init
 
-    x[len(W_0):] = inputs[:, :x.shape[1]]
+    if inputs is not None:
+        x[len(W_0):] = inputs[:, :x.shape[1]]
+
     spikes = []
     ref_scale_range = np.arange(params['ref_scale'])
 
     for t in pbar(range(params['n_time_step'] - 1)):
 
-        if t >= params['ref_scale']:
+        if t >= params['ref_scale'] and inputs is not None:
             x[len(W_0):] = inputs[:, t-params['ref_scale']+1: t+1]
 
         # if any spikes store spike indices and time
@@ -218,13 +241,15 @@ def simulate(W, W_0, inputs, params, pbar=None, rng=None):
     return np.array(spikes)
 
 
-def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu', rng=None):
+def simulate_torch(W, W_0, params, inputs=None, pbar=None, device='cpu', rng=None):
     import torch
     rng = torch.Generator() if rng is None else rng
     pbar = pbar if pbar is not None else lambda x:x
 
     W = torch.as_tensor(W).to(device, dtype=torch.float32)
-    inputs = torch.as_tensor(inputs, dtype=torch.float32).to(device)
+    if inputs is not None:
+        inputs = torch.as_tensor(inputs, dtype=torch.float32).to(device)
+
     x = torch.zeros((len(W), params['ref_scale']), dtype=torch.float32, device=device)
     rand_init = torch.randint(0, 2, (params['n_neurons'],), generator=rng, device=device)
     # if W_0 has dales law transform n_neurons = len(W_0) / 2 and the first
@@ -235,7 +260,8 @@ def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu', rng=None):
 
     x[:len(W_0), -1] = rand_init
 
-    x[len(W_0):] = inputs[:, :x.shape[1]]
+    if inputs is not None:
+        x[len(W_0):] = inputs[:, :x.shape[1]]
     spikes = []
 
 
@@ -243,7 +269,7 @@ def simulate_torch(W, W_0, inputs, params, pbar=None, device='cpu', rng=None):
     ref_scale_range_flip = ref_scale_range.flip(0)
     for t in pbar(range(params['n_time_step'] - 1)):
 
-        if t >= params['ref_scale']:
+        if t >= params['ref_scale'] and inputs is not None:
             x[len(W_0):] = inputs[:, t-params['ref_scale']+1: t+1]
 
         # if any spikes store spike indices and time
