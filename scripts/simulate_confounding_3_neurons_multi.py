@@ -76,7 +76,7 @@ if __name__ == '__main__':
 
     for conn_strength in np.arange(0,8,1):
         W_0[1, 2] = conn_strength
-        W, W_0, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
+        W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
         W = construct_additional_filters(W, [0, 1], params['stim_scale'], params['stim_strength'])
         W = construct_additional_filters(W, [0, 1, 2], params['drive_scale'], params['drive_strength'])
 

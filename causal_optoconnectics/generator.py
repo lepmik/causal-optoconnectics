@@ -74,7 +74,7 @@ def simulate_simple_conditional_response(stim_times, make_post=False, response='
         return pre_spikes
 
 
-def construct_connectivity_matrix(params, rng=None):
+def construct_connectivity_matrix(params, rng=None, self_connections=False):
     rng = default_rng() if rng is None else rng
     if 'uniform' in params:
         W_0 = rng.uniform(
@@ -96,7 +96,8 @@ def construct_connectivity_matrix(params, rng=None):
         )
     else:
         raise ValueError()
-
+    if not self_connections:
+        np.fill_diagonal(W_0, 0)
     return W_0
 
 
@@ -121,7 +122,6 @@ def sparsify(W_0, sparsity, rng):
 
 
 def construct_connectivity_filters(W_0, params):
-    np.fill_diagonal(W_0, np.nan)
     # construct construct connectivity matrix
     W = np.zeros((W_0.shape[0], W_0.shape[1], params['ref_scale']))
     for i in range(W_0.shape[0]):
@@ -139,7 +139,7 @@ def construct_connectivity_filters(W_0, params):
     excitatory_neuron_idx, = np.where(np.any(W_0 > 0, 1))
     inhibitory_neuron_idx, = np.where(np.any(W_0 < 0, 1))
 
-    return W, W_0, excitatory_neuron_idx, inhibitory_neuron_idx
+    return W, excitatory_neuron_idx, inhibitory_neuron_idx
 
 
 def generate_regular_stim_times(period, size):

@@ -25,7 +25,7 @@ def construct(params, rng):
     )
     W_0 = construct_connectivity_matrix(params)
     W_0 = dales_law_transform(W_0)
-    W, W_0, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
+    W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_additional_filters(
         W, excit_idx[:params['n_stim']], params['stim_scale'],
         params['stim_strength'])
