@@ -346,7 +346,7 @@ def process_metadata(W, stim_index, params):
                 'source_stim_strength': W[stim_index, i, 0],
                 'target_stim': W[stim_index, j, 0] > 0,
             })
-    return pd.DataFrame(pairs)
+    return pairs
 
 
 def process(pair, trials, W, stim_index, params, n_trials=None):

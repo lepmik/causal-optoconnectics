@@ -70,7 +70,7 @@ if __name__ == '__main__':
         data_df.loc[i, 'cov_smin'] = s_cov.min()
         data_df.loc[i, 'cov_smax'] = s_cov.max()
 
-        results_meta = process_metadata(W=W, stim_index=stim_index, params=params)
+        results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
         sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
         sample = pd.DataFrame([process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=params) for pair in sample_meta.pair.values])
         #sample = multi_process(trials=trials, W=W, stim_index=stim_index, params=params, pairs=sample_meta.pair.values)

@@ -48,10 +48,13 @@ if __name__ == '__main__':
         stim_index = len(W_0)
         params = data['params'].update(rparams)
         trials = np.load(path / 'trials.npz', allow_pickle=True)['data'][()]
+        #print(type(trials))
+        #print(len(trials))
+        #print(trials[0])
         for ii in range(n_iter):
-            idxs = rng.choice(len(trials[0]), size=1.5e6, replace=False)
+            idxs = rng.choice(len(trials[0]), size=int(1.5e6), replace=False)
             sub_trials = {k: v[idxs] for k, v in trials.items()}
-            results_meta = process_metadata(W=W, stim_index=stim_index, params=params)
+            results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
             sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
             sample = pd.DataFrame([process(pair=pair, W=W, stim_index=stim_index, trials=sub_trials, params=params) for pair in sample_meta.pair.values])
             sample.to_csv(path / f'sub_sample_{ii}.csv')
