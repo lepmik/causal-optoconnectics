@@ -84,7 +84,6 @@ if __name__ == '__main__':
     for n_neurons in n_neuronss:
         for stim_strength in stim_strengths:
             for sigma in sigmas:
-                params['const'] = 5.
                 params['glorot_normal']['sigma'] = sigma
                 params['stim_strength'] = stim_strength
                 params['n_neurons'] = n_neurons

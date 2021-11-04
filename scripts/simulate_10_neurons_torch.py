@@ -20,13 +20,13 @@ from causal_optoconnectics.generator import (
     generate_regular_stim_times,
     generate_oscillatory_drive,
     dales_law_transform,
-    construct_mexican_hat_connectivity,
     simulate_torch
 )
 
 def construct(params, rng=None):
     rng = default_rng() if rng is None else rng
-    stimulus = generate_poisson_stim_times(
+    # set stim
+    binned_stim_times = generate_poisson_stim_times(
         params['stim_period'],
         params['stim_isi_min'],
         params['stim_isi_max'],
@@ -34,14 +34,24 @@ def construct(params, rng=None):
         rng=rng
     )
 
-    W_0 = params['mex_r'] * construct_mexican_hat_connectivity(params)
-
+    #binned_drive = generate_poisson_stim_times(
+    #    params['drive_period'],
+    #    params['drive_isi_min'],
+    #    params['drive_isi_max'],
+    #    params['n_time_step'],
+    #    rng=rng
+    #)
+    #stimulus = np.concatenate((binned_stim_times, binned_drive), 0)
+    stimulus = binned_stim_times
+    W_0 = construct_connectivity_matrix(params)
+    #W_0 = (np.abs(W_0.T) * np.sign(W_0.mean(1))).T 
     W_0 = dales_law_transform(W_0)
-
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_additional_filters(
         W, excit_idx[:params['n_stim']], params['stim_scale'],
         params['stim_strength'])
+    #W = construct_additional_filters(
+    #    W, range(len(W_0)), params['drive_scale'], params['drive_strength'])
 
     return W, W_0, stimulus, excit_idx, inhib_idx
 
@@ -64,7 +74,7 @@ if __name__ == '__main__':
 
     params = {
         'const': 5,
-        'n_neurons': 100,
+        'n_neurons': 10,
         'n_stim': 5,
         'dt': 1e-3,
         'ref_scale': 10,
@@ -77,23 +87,23 @@ if __name__ == '__main__':
         'stim_period': 50,
         'stim_isi_min': 10,
         'stim_isi_max': 200,
-        'mex_sigma_1': 6.98,
-        'mex_sigma_2': 7.,
-        'mex_a': 0.9993,
-        'mex_r': 5e3,
+        #'drive_scale': 10,
+        #'drive_strength': -6,
+        #'drive_period': 100,
+        #'drive_isi_min': 20,
+        #'drive_isi_max': 200,
         'alpha': 0.2,
         'glorot_normal': {
             'mu': 0,
             'sigma': 5
         },
-        'n_time_step': int(20e6),
-        'sparsity': 0.8,
+        'n_time_step': int(5e6),
         'seed': 12345,
     }
-    num_cores = 5#multiprocessing.cpu_count()
+    num_cores = 10
     rng = default_rng(params['seed'])
 
-    fname =  f'mexican_hat_{params["mex_r"]:g}'.replace('.','')
+    fname =  f'n10_ss5_s5'
 
     W, W_0, stimulus, excit_idx, inhib_idx = construct(params, rng=rng)
     pool = Pool(

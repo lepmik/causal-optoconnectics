@@ -61,6 +61,7 @@ if __name__ == '__main__':
         'n_time_step': int(1e6),
         'seed': 12345 + rank
     }
+    rng = default_rng(params['seed'])
     n_neuronss = [10, 20, 30, 40, 50]
     stim_strengths = [1, 2, 3, 4, 5, 6, 7, 8]
     sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7]
@@ -68,7 +69,6 @@ if __name__ == '__main__':
     for n_neurons in n_neuronss:
         for stim_strength in stim_strengths:
             for sigma in sigmas:
-                params['const'] = 5.
                 params['glorot_normal']['sigma'] = sigma
                 params['stim_strength'] = stim_strength
                 params['n_neurons'] = n_neurons
@@ -79,7 +79,7 @@ if __name__ == '__main__':
                     continue
 
                 if rank == 0:
-                    connectivity[path] = construct(params)
+                    connectivity[path] = construct(params, rng)
                 connectivity = comm.bcast(connectivity, root=0)
 
                 W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]

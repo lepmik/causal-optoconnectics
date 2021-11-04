@@ -72,7 +72,7 @@ if __name__ == '__main__':
     params = {
         'const': 5,
         'n_neurons': 50,
-        'n_stim': 5,
+        'n_stim': 10,
         'dt': 1e-3,
         'ref_scale': 10,
         'abs_ref_scale': 3,
@@ -85,12 +85,12 @@ if __name__ == '__main__':
         'stim_isi_min': 10,
         'stim_isi_max': 200,
         'drive_scale': 10,
-        'drive_strength': -5,
+        'drive_strength': -6,
         'drive_period': 100,
         'alpha': 0.2,
         'glorot_normal': {
             'mu': 0,
-            'sigma': 5
+            'sigma': 7
         },
         'n_time_step': int(20e6),
         'sparsity': 0.8,
