@@ -101,8 +101,6 @@ class Connectivity:
             #y0 = post[:, stim_idx-n_response:stim_idx].sum(1).astype(bool)
             y0 = post[:,y1-n_response:y2-n_response].sum(1).astype(bool)
 
-            self.x, self.y, self.z, self.y0 = x, y, z, y0
-
             self.yz_sum = (y*z).sum()
             self.z_sum = z.sum()
             self.yx_sum = (y*x).sum()

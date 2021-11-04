@@ -8,7 +8,7 @@ from functools import partial
 import ruamel.yaml
 
 from causal_optoconnectics.tools import (
-    compute_trials_multi,
+    compute_trials,
     decompress_events,
     error,
     error_norm,
@@ -45,7 +45,7 @@ def conditional_sum(s1, s2):
         assert (s1 == s2).all()
         return s1
 
-def compute_connectivity_from_sum(row, params=None):
+def compute_connectivity_from_sum(row):
     conn = Connectivity(
         compute_values=False,
         compute_sums=False
@@ -53,8 +53,6 @@ def compute_connectivity_from_sum(row, params=None):
     conn.__dict__.update(row.to_dict())
     conn.compute()
     result = conn.__dict__
-    if params is not None:
-        result.update(params)
     return result
 
 if __name__ == '__main__':
@@ -90,7 +88,7 @@ if __name__ == '__main__':
             neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
             trials = compute_trials(X, neurons, stim_index)
             sums = pd.DataFrame([
-                process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=None, compute_values=False, compute_sums=True)
+                process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=params, compute_values=False, compute_sums=True)
                 for pair in sample_meta.pair.values])
             sums.to_csv(fn.with_suffix('.csv'))
             samples.append(sums)
@@ -114,7 +112,7 @@ if __name__ == '__main__':
 
         sample = reduce(lambda  left, right: pd.combine(left, right, conditional_sum), samples)
         sample = pd.DataFrame([
-            compute_connectivity_from_sum(row, params=params)
+            compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])
         sample.to_csv(row.path / 'sample.csv')
         values = pd.concat((values, sample))

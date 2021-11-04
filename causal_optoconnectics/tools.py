@@ -349,11 +349,12 @@ def process_metadata(W, stim_index, params):
     return pairs
 
 
-def process(pair, W, stim_index, params=None, trials=None, n_trials=None, compute_values=True, compute_sums=True):
+def process(pair, W, stim_index, params, trials=None, n_trials=None, compute_values=True, compute_sums=True):
     i, j = pair
     if compute_sums:
+        pre, post = trials[i], trials[j]
         n_trials = len(pre) if n_trials is None else n_trials
-        pre, post = trials[i][:n_trials], trials[j][:n_trials]
+        pre, post = pre[:n_trials], post[:n_trials]
     else:
         pre, post = None, None
     conn = Connectivity(
@@ -374,8 +375,7 @@ def process(pair, W, stim_index, params=None, trials=None, n_trials=None, comput
         'target_stim': W[stim_index, j, 0] > 0,
     }
     result.update(conn.__dict__)
-    if params is not None:
-        result.update(params)
+    result.update(params)
     return result
 
 
