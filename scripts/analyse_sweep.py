@@ -48,7 +48,8 @@ if __name__ == '__main__':
         W_0 = data['W_0']
         W = data['W']
         stim_index = len(W_0)
-        params = data['params'].update(rparams)
+        params = data['params']
+        params.update(rparams)
         data_df.loc[i, params.keys()] = params.values()
         data_df.loc[i, 'sigma'] = params['glorot_normal']['sigma']
         with open(row.path / 'params.yaml', 'w') as f:
