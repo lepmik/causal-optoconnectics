@@ -79,37 +79,54 @@ def find_response_spikes(x, y, s, z1, z2, dt):
 
 
 class Connectivity:
-    def __init__(self, pre, post, x1, x2, y1, y2, z1, z2):
+    def __init__(self, pre=None, post=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None, compute_values=True, compute_sums=True):
         '''
         pre/post are trials of size n_trials x n_bins
         assumes that the stimulation starts on the middle bin
         x1, x2, y1, y2, z1, z2 are bin indices for where
+        assumes that there is only one spike per trial, or is interpreted as
+        such that in one trial a response is true or false
         '''
-        n_bins = pre.shape[1]
-        assert n_bins % 2 == 0
-        #stim_idx = int(n_bins / 2)
-        n_response = y2-y1
+        # this gives the possibility to give sums
+        if compute_sums:
+            self.n_trials, n_bins = pre.shape
+            assert n_bins % 2 == 0
+            #stim_idx = int(n_bins / 2)
+            n_response = y2-y1
 
-        x = pre[:, x1:x2].sum(1).astype(bool)
-        y = post[:, y1:y2].sum(1).astype(bool)
-        z = pre[:, z1:z2].sum(1).astype(bool)
+            x = pre[:, x1:x2].sum(1).astype(bool)
+            y = post[:, y1:y2].sum(1).astype(bool)
+            z = pre[:, z1:z2].sum(1).astype(bool)
 
-        #y0 = post[:, stim_idx-n_response:stim_idx].sum(1).astype(bool)
-        y0 = post[:,y1-n_response:y2-n_response].sum(1).astype(bool)
+            #y0 = post[:, stim_idx-n_response:stim_idx].sum(1).astype(bool)
+            y0 = post[:,y1-n_response:y2-n_response].sum(1).astype(bool)
 
-        self.x, self.y, self.z, self.y0 = x, y, z, y0
+            self.x, self.y, self.z, self.y0 = x, y, z, y0
 
-        y_refractory = (y*z).sum() / z.sum()
+            self.yz_sum = (y*z).sum()
+            self.z_sum = z.sum()
+            self.yx_sum = (y*x).sum()
+            self.x_sum = x.sum()
+            self.yxinv_sum = (y*(1-x)).sum()
+            self.xinv_sum = (1-x).sum()
+            self.y0z_sum = (y0*z).sum()
+            self.y0x_sum = (y0*x).sum()
+            self.y0xinv_sum = (y0*(1-x)).sum()
+        if compute_values:
+            self.compute()
 
-        y_response = (y*x).sum() / x.sum()
+    def compute(self):
+        y_refractory = self.yz_sum / self.z_sum
 
-        y_nospike = (y*(1-x)).sum() / (1-x).sum()
+        y_response = self.yx_sum / self.x_sum
 
-        y0_refractory = (y0*z).sum() / z.sum()
+        y_nospike = self.yxinv_sum / self.xinv_sum
 
-        y0_response = (y0*x).sum() / x.sum()
+        y0_refractory = self.y0z_sum / self.z_sum
 
-        y0_nospike = (y0*(1-x)).sum() / (1-x).sum()
+        y0_response = self.y0x_sum / self.x_sum
+
+        y0_nospike = self.y0xinv_sum / self.xinv_sum
 
         # standard iv
         self.beta_iv = y_response - y_refractory
@@ -121,4 +138,4 @@ class Connectivity:
         # OLS
         self.beta_did = self.beta - (y0_response - y0_nospike)
 
-        self.hit_rate = x.mean()
+        self.hit_rate = self.x_sum / self.n_trials

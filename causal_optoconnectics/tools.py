@@ -349,33 +349,33 @@ def process_metadata(W, stim_index, params):
     return pairs
 
 
-def process(pair, trials, W, stim_index, params, n_trials=None):
+def process(pair, W, stim_index, params=None, trials=None, n_trials=None, compute_values=True, compute_sums=True):
     i, j = pair
-    pre, post = trials[i], trials[j]
-
-    n_trials = len(pre) if n_trials is None else n_trials
-
+    if compute_sums:
+        n_trials = len(pre) if n_trials is None else n_trials
+        pre, post = trials[i][:n_trials], trials[j][:n_trials]
+    else:
+        pre, post = None, None
     conn = Connectivity(
-        pre[:n_trials],
-        post[:n_trials],
-        *map(params.get, ['x1', 'x2', 'y1', 'y2', 'z1', 'z2'])
+        pre,
+        post,
+        *map(params.get, ['x1', 'x2', 'y1', 'y2', 'z1', 'z2']),
+        compute_values=compute_values,
+        compute_sums=compute_sums
     )
 
-    result ={
+    result = {
         'source': i,
         'target': j,
         'pair': pair,
-        'beta_iv': conn.beta_iv,
-        'beta': conn.beta,
-        'beta_iv_did': conn.beta_iv_did,
-        'beta_did': conn.beta_did,
-        'hit_rate': conn.hit_rate,
         'weight': W[i, j, 0],
         'source_stim': W[stim_index, i, 0] > 0,
         'source_stim_strength': W[stim_index, i, 0],
         'target_stim': W[stim_index, j, 0] > 0,
     }
-    result.update(params)
+    result.update(conn.__dict__)
+    if params is not None:
+        result.update(params)
     return result
 
 
