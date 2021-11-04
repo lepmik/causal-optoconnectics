@@ -56,7 +56,7 @@ if __name__ == '__main__':
             yaml.dump(params, f)
         n_neurons = params['n_neurons']
 
-        results_meta = process_metadata(W=W, stim_index=stim_index, params=params)
+        results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
         sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
         neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
         trials = compute_trials_multi(X, neurons, stim_index)
