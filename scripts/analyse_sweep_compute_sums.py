@@ -6,6 +6,7 @@ from collections import defaultdict
 from scipy.linalg import svd
 from functools import partial
 import ruamel.yaml
+import multiprocessing
 
 from causal_optoconnectics.tools import (
     compute_trials,
@@ -55,6 +56,33 @@ def compute_connectivity_from_sum(row):
     result = conn.__dict__
     return result
 
+
+def load(fn):
+    data = np.load(fn, allow_pickle=True)
+    data = {k: data[k][()] for k in data.keys()}
+    X = data['data']
+    W_0 = data['W_0']
+    W = data['W']
+    params = data['params']
+    params.update(rparams)
+    return X, W_0, W, params
+
+
+def compute(fn):
+    X, W_0, W, params = load(fn)
+    stim_index = len(W_0)
+    results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
+    sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
+    neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
+    trials = compute_trials(X, neurons, stim_index)
+    sums = pd.DataFrame([
+        process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=params, compute_values=False, compute_sums=True)
+        for pair in sample_meta.pair.values])
+    sums.to_csv(fn.with_suffix('.csv'))
+
+    return sums
+
+
 if __name__ == '__main__':
     import sys
     from functools import reduce
@@ -66,36 +94,17 @@ if __name__ == '__main__':
 
     values = pd.DataFrame()
     for i, row in tqdm(data_df.iterrows(), total=len(data_df)):
-        #print(f'Working on {row.path}')
-        samples = []
-        for fn in row.path.glob('*.npz'):
-            if fn.stem == 'trials':
-                continue
-            data = np.load(fn, allow_pickle=True)
-            data = {k: data[k][()] for k in data.keys()}
-            X = data['data']
-            W_0 = data['W_0']
-            W = data['W']
-            stim_index = len(W_0)
-            params = data['params']
-            params.update(rparams)
-            data_df.loc[i, params.keys()] = params.values()
-            data_df.loc[i, 'sigma'] = params['glorot_normal']['sigma']
 
+        with multiprocessing.Pool() as p:
+            samples = p.map(compute, row.path.glob('rank_*.npz'))
 
-            results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
-            sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
-            neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
-            trials = compute_trials(X, neurons, stim_index)
-            sums = pd.DataFrame([
-                process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=params, compute_values=False, compute_sums=True)
-                for pair in sample_meta.pair.values])
-            sums.to_csv(fn.with_suffix('.csv'))
-            samples.append(sums)
-
+        X, W_0, W, params = load(row.path / 'rank_0.npz')
         with open(row.path / 'params.yaml', 'w') as f:
             yaml.dump(params, f)
         n_neurons = params['n_neurons']
+
+        data_df.loc[i, params.keys()] = params.values()
+        data_df.loc[i, 'sigma'] = params['glorot_normal']['sigma']
 
         s_W = svd(W_0, compute_uv=False)
         data_df.loc[i, 'W_condition'] = s_W.max() / s_W.min()
