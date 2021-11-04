@@ -55,7 +55,11 @@ if __name__ == '__main__':
         with open(row.path / 'params.yaml', 'w') as f:
             yaml.dump(params, f)
         n_neurons = params['n_neurons']
-        trials = compute_trials_multi(X, len(W_0), stim_index)
+
+        results_meta = process_metadata(W=W, stim_index=stim_index, params=params)
+        sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
+        neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
+        trials = compute_trials_multi(X, neurons, stim_index)
         np.savez(row.path / 'trials', data=trials)
 
         s_W = svd(W_0, compute_uv=False)
@@ -70,8 +74,6 @@ if __name__ == '__main__':
         data_df.loc[i, 'cov_smin'] = s_cov.min()
         data_df.loc[i, 'cov_smax'] = s_cov.max()
 
-        results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
-        sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
         sample = pd.DataFrame([process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=params) for pair in sample_meta.pair.values])
         #sample = multi_process(trials=trials, W=W, stim_index=stim_index, params=params, pairs=sample_meta.pair.values)
         sample.to_csv(row.path / 'sample.csv')
