@@ -88,7 +88,7 @@ if __name__ == '__main__':
             results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
             sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
             neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
-            trials = compute_trials_multi(X, neurons, stim_index)
+            trials = compute_trials(X, neurons, stim_index)
             sums = pd.DataFrame([
                 process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=None, compute_values=False, compute_sums=True)
                 for pair in sample_meta.pair.values])

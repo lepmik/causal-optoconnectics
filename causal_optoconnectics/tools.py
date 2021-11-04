@@ -175,14 +175,14 @@ def compute_trials(events, neurons, stim_index, n1=-10, n2=10):
     return trials
 
 
-def compute_trials_multi(events, neurons, stim_index, n1=-10, n2=10):
+def compute_trials_multi(events_list, neurons, stim_index, n1=-10, n2=10):
     """Compute trials from spike indices from multiple datasets, using
     multiprocessing.
 
     Parameters
     ----------
-    events : array, (n_events, 2)
-        Array of unit ids in first column and corresponding spike-time indices
+    events_list : list, [(n_events, 2), ...]
+        List with multiple arrays of unit ids in first column and corresponding spike-time indices
         on second column. Assumes neurons are indexed 0:n_neurons.
     neurons : int or array
         Neurons to compute,
@@ -213,7 +213,7 @@ def compute_trials_multi(events, neurons, stim_index, n1=-10, n2=10):
     with multiprocessing.Pool() as p:
         samples = p.map(partial(
             compute_trials, neurons=neurons, stim_index=stim_index,
-            n1=n1, n2=n2), events)
+            n1=n1, n2=n2), events_list)
 
     trials = defaultdict(list)
     for ni in neurons:
