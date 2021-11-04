@@ -1,4 +1,7 @@
 import numpy as np
+from scipy.linalg import norm
+from scipy.optimize import minimize_scalar
+from .core import Connectivity
 
 
 def poisson_continuity_correction(n, observed):
@@ -326,3 +329,72 @@ def roll_pad(x, i, axis=1):
             raise NotImplementedError
     else:
         raise NotImplementedError
+
+
+def process_metadata(W, stim_index, params):
+    pairs = []
+    for i in range(params['n_neurons']):
+        for j in range(params['n_neurons']):
+            if i==j:
+                continue
+            pairs.append({
+                'source': i,
+                'target': j,
+                'pair': (i,j),
+                'weight': W[i, j, 0],
+                'source_stim': W[stim_index, i, 0] > 0,
+                'source_stim_strength': W[stim_index, i, 0],
+                'target_stim': W[stim_index, j, 0] > 0,
+            })
+    return pd.DataFrame(pairs)
+
+
+def process(pair, trials, W, stim_index, params, n_trials=None):
+    i, j = pair
+    pre, post = trials[i], trials[j]
+
+    n_trials = len(pre) if n_trials is None else n_trials
+
+    conn = Connectivity(
+        pre[:n_trials],
+        post[:n_trials],
+        *map(params.get, ['x1', 'x2', 'y1', 'y2', 'z1', 'z2'])
+    )
+
+    result ={
+        'source': i,
+        'target': j,
+        'pair': pair,
+        'beta_iv': conn.beta_iv,
+        'beta': conn.beta,
+        'beta_iv_did': conn.beta_iv_did,
+        'beta_did': conn.beta_did,
+        'hit_rate': conn.hit_rate,
+        'weight': W[i, j, 0],
+        'source_stim': W[stim_index, i, 0] > 0,
+        'source_stim_strength': W[stim_index, i, 0],
+        'target_stim': W[stim_index, j, 0] > 0,
+    }
+    result.update(params)
+    return result
+
+
+def compute_time_dependence(i, j, step=10000):
+    pre, post = trials[i], trials[j]
+    results = []
+    start = 0
+    for stop in tqdm(range(step, len(pre) + step, step)):
+        results.append(process(i, j, stop))
+    return results
+
+
+def error(a, df, key):
+    return df['weight'] - a * df[key]
+
+
+def error_norm(a, df, key):
+    return norm(error(a, df, key))
+
+
+def min_error(df, key):
+    return minimize_scalar(error_norm, args=(df, key))

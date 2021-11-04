@@ -6,83 +6,25 @@ from collections import defaultdict
 from scipy.linalg import svd
 from functools import partial
 import ruamel.yaml
-from scipy.linalg import norm
-from scipy.optimize import minimize_scalar
 
-from causal_optoconnectics.graphics import regplot, scatterplot, probplot
-from causal_optoconnectics.tools import conditional_probability, joint_probability, roll_pad
-from causal_optoconnectics.tools import compute_trials_multi, decompress_events
-from causal_optoconnectics.core import Connectivity
+from causal_optoconnectics.tools import (
+    compute_trials_multi,
+    decompress_events,
+    error,
+    error_norm,
+    min_error,
+    process,
+    process_metadata
+)
 
-
-x_i, x_j = 11, 13
-y_i, y_j = 12, 19
-z_i, z_j = 7, 10
-
-def process_metadata(W, stim_index, params):
-
-    pairs = []
-    for i in range(params['n_neurons']):
-        for j in range(params['n_neurons']):
-            if i==j:
-                continue
-            pair = f'{i}_{j}'
-            pairs.append({
-                'source': i,
-                'target': j,
-                'pair': pair,
-                'weight': W[i, j, 0],
-                'source_stim': W[stim_index, i, 0] > 0,
-                'source_stim_strength': W[stim_index, i, 0],
-                'target_stim': W[stim_index, j, 0] > 0,
-            })
-    return pd.DataFrame(pairs)
-
-def process(pair, trials, W, stim_index, params, n_trials=None):
-    i, j = [int(a) for a in pair.split('_')]
-
-    pre, post = trials[i], trials[j]
-
-    n_trials = len(pre) if n_trials is None else n_trials
-
-    conn = Connectivity(pre[:n_trials], post[:n_trials], x_i, x_j, y_i, y_j, z_i, z_j)
-
-    result ={
-        'source': i,
-        'target': j,
-        'pair': pair,
-        'beta_iv': conn.beta_iv,
-        'beta': conn.beta,
-        'beta_iv_did': conn.beta_iv_did,
-        'beta_did': conn.beta_did,
-        'hit_rate': conn.hit_rate,
-        'weight': W[i, j, 0],
-        'source_stim': W[stim_index, i, 0] > 0,
-        'source_stim_strength': W[stim_index, i, 0],
-        'target_stim': W[stim_index, j, 0] > 0,
-    }
-    result.update(params)
-    return result
-
-
-def compute_time_dependence(i, j, step=10000):
-    pre, post = trials[i], trials[j]
-    results = []
-    start = 0
-    for stop in tqdm(range(step, len(pre) + step, step)):
-        results.append(process(i,j,stop))
-    return results
-
-
-
-def error(a, df, key):
-    return df['weight'] - a * df[key]
-
-def error_norm(a, df, key):
-    return norm(error(a, df, key))
-
-def min_error(df, key):
-    return minimize_scalar(error_norm, args=(df, key)).fun
+rparams = {
+    'x1': 11,
+    'x2': 13,
+    'y1': 12,
+    'y2': 19,
+    'z1': 7,
+    'z2': 10,
+}
 
 def load(path):
     data = np.load(path / 'rank_0.npz', allow_pickle=True)
@@ -106,7 +48,7 @@ if __name__ == '__main__':
         W_0 = data['W_0']
         W = data['W']
         stim_index = len(W_0)
-        params = data['params']
+        params = data['params'].update(rparams)
         data_df.loc[i, params.keys()] = params.values()
         data_df.loc[i, 'sigma'] = params['glorot_normal']['sigma']
         with open(row.path / 'params.yaml', 'w') as f:
@@ -114,7 +56,7 @@ if __name__ == '__main__':
         n_neurons = params['n_neurons']
         trials = compute_trials_multi(X, len(W_0), stim_index)
         np.savez(row.path / 'trials', data=trials)
-        
+
         s_W = svd(W_0, compute_uv=False)
         data_df.loc[i, 'W_condition'] = s_W.max() / s_W.min()
         data_df.loc[i, 'W_smin'] = s_W.min()
@@ -133,11 +75,12 @@ if __name__ == '__main__':
         #sample = multi_process(trials=trials, W=W, stim_index=stim_index, params=params, pairs=sample_meta.pair.values)
         sample.to_csv(row.path / 'sample.csv')
         values = pd.concat((values, sample))
-        data_df.loc[i, 'error_beta_did'] = min_error(sample, 'beta_did')
-        data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did')
-        data_df.loc[i, 'error_beta'] = min_error(sample, 'beta')
-        data_df.loc[i, 'error_beta_iv'] = min_error(sample, 'beta_iv')
+        data_df.loc[i, 'error_beta_did'] = min_error(sample, 'beta_did').fun
+        data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did').fun
+        data_df.loc[i, 'error_beta'] = min_error(sample, 'beta').fun
+        data_df.loc[i, 'error_beta_iv'] = min_error(sample, 'beta_iv').fun
 
     data_df.loc[:,'error_diff'] = data_df.error_beta - data_df.error_beta_iv
+    data_df.loc[:,'error_diff_did'] = data_df.error_beta_did - data_df.error_beta_iv_did
     data_df.to_csv(data_path / 'summary.csv')
     values.to_csv(data_path / 'values.csv')
