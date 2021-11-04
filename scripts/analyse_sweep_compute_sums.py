@@ -7,7 +7,7 @@ from scipy.linalg import svd
 from functools import partial
 import ruamel.yaml
 import multiprocessing
-
+from causal_optoconnectics.core import Connectivity
 from causal_optoconnectics.tools import (
     compute_trials,
     decompress_events,
@@ -70,6 +70,7 @@ def load(fn):
 
 def compute(fn):
     X, W_0, W, params = load(fn)
+    params.pop('seed')
     stim_index = len(W_0)
     results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
     sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
@@ -119,7 +120,7 @@ if __name__ == '__main__':
         data_df.loc[i, 'cov_smax'] = s_cov.max()
 
 
-        sample = reduce(lambda  left, right: pd.combine(left, right, conditional_sum), samples)
+        sample = reduce(lambda  left, right: left.combine(right, conditional_sum), samples)
         sample = pd.DataFrame([
             compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])
