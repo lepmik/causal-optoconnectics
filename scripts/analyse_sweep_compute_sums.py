@@ -27,8 +27,8 @@ rparams = {
     'z2': 10,
 }
 
-def conditional_sum(s1, s2):
-    l = [
+def reduce_sum(dfs):
+    keys = [
         'yz_sum',
         'z_sum',
         'yx_sum',
@@ -40,11 +40,10 @@ def conditional_sum(s1, s2):
         'y0xinv_sum',
         'n_trials'
     ]
-    if s1.name in l:
-        return s1 + s2
-    else:
-        assert (s1 == s2).all()
-        return s1
+    result = dfs[0]
+    for key in keys:
+        result[key] = sum([df[key].values for df in dfs])
+    return result
 
 def compute_connectivity_from_sum(row):
     conn = Connectivity(
@@ -120,7 +119,7 @@ if __name__ == '__main__':
         data_df.loc[i, 'cov_smax'] = s_cov.max()
 
 
-        sample = reduce(lambda  left, right: left.combine(right, conditional_sum), samples)
+        sample = reduce_sum(samples)
         sample = pd.DataFrame([
             compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])

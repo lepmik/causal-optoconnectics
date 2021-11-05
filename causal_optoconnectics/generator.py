@@ -7,7 +7,7 @@ import pathlib
 from .tools import roll_pad
 
 
-def clipped_lognormal(mu, sigma, size, low, high, rng=None):
+def clipped_lognormal(mu, sigma, size, low, high, rng=None, max_iter=100000):
     rng = default_rng() if rng is None else rng
     sample = rng.lognormal(mu, sigma, size)
     while ((sample < low) | (sample > high)).any():
@@ -19,7 +19,9 @@ def clipped_lognormal(mu, sigma, size, low, high, rng=None):
             mask[i] = mask[i][:n]
             submask[i] = submask[i][:n]
         sample[tuple(mask)] = subsample[tuple(submask)]
-
+        if itr > max_iter:
+            print('Did not reach the desired limits in "max_iter" iterations')
+            return None
     return sample
 
 
@@ -94,6 +96,15 @@ def construct_connectivity_matrix(params, rng=None, self_connections=False):
             scale=params['glorot_normal']['sigma'] / np.sqrt(params['n_neurons']),
             size=(params['n_neurons'], params['n_neurons'])
         )
+    # elif 'lognormal' in params:
+    #     mu, sigma, size, low, high
+    #     W_0 = clipped_lognormal(
+    #         mu=params['lognormal']['mu'],
+    #         sigma=params['lognormal']['sigma'] / np.sqrt(params['n_neurons']),
+    #         size=(params['n_neurons'], params['n_neurons']),
+    #         low
+    #         high
+    #     )
     else:
         raise ValueError()
     if not self_connections:
@@ -129,7 +140,8 @@ def dales_law_transform(W_0):
     return W_0
 
 
-def sparsify(W_0, sparsity, rng):
+def sparsify(W_0, sparsity, rng)=None:
+    rng = default_rng() if rng is None else rng
     indices = np.unravel_index(
         rng.choice(
             np.arange(np.prod(W_0.shape)),
