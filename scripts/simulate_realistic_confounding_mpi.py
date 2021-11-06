@@ -31,8 +31,11 @@ def construct_connectivity_matrix(params):
         low=params['lognormal']['low_in'],
         high=params['lognormal']['high_in'],
     )
-    np.fill_diagonal(W, 0)
-    return np.concatenate([W_ex, -W_in], 0)
+    W_ex = sparsify(W_ex, params['sparsity_ex'], rng)
+    W_in = sparsify(W_in, params['sparsity_in'], rng)
+    W_0 = np.concatenate([W_ex, -W_in], 0)
+    np.fill_diagonal(W_0, 0)
+    return W_0
 
 
 def compute_stim_amps(params, nodes, rng):
@@ -89,7 +92,6 @@ def construct(params, rng):
 
 
     W_0 = construct_connectivity_matrix(params)
-    W_0 = sparsify(W_0, params['sparsity'], rng)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_input_filters(
         W, excit_idx[:params['n_stim']], params['stim_scale'],
