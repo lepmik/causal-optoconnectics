@@ -193,11 +193,13 @@ def generate_poisson_stim_times(period, low, high, size, rng=None):
     return np.expand_dims(binned_stim_times, 0)
 
 
-def construct_additional_filters(W, indices, scale, strength):
+def construct_input_filters(W, indices, scale, strength):
     W = np.concatenate((W, np.zeros((1, W.shape[1], W.shape[2]))), 0)
-    # W = np.concatenate((W, np.zeros((W.shape[0], 1, W.shape[2]))), 1)#TODO do we really need this one??
+    if isinstance(strength, int):
+        strength = {j: strength for j in indices}
+
     for j in indices:
-        W[-1, j, np.arange(scale)] = strength
+        W[-1, j, np.arange(scale)] = strength[j]
     return W
 
 
