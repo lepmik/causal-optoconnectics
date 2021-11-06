@@ -15,7 +15,7 @@ from causal_optoconnectics.generator import (
     construct_connectivity_filters,
     construct_connectivity_matrix,
     simulate_torch,
-    construct_additional_filters,
+    construct_input_filters,
     generate_poisson_stim_times,
     generate_regular_stim_times,
     generate_oscillatory_drive,
@@ -44,10 +44,10 @@ def construct(params, rng=None):
     W_0 = sparsify(W_0, params['sparsity'], rng)
     W_0 = dales_law_transform(W_0)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
-    W = construct_additional_filters(
+    W = construct_input_filters(
         W, excit_idx[:params['n_stim']], params['stim_scale'],
         params['stim_strength'])
-    W = construct_additional_filters(
+    W = construct_input_filters(
         W, range(len(W_0)), params['drive_scale'], params['drive_strength'])
 
     return W, W_0, stimulus, excit_idx, inhib_idx

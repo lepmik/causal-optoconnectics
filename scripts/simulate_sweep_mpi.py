@@ -8,7 +8,7 @@ from causal_optoconnectics.generator import (
     construct_connectivity_filters,
     construct_connectivity_matrix,
     simulate,
-    construct_additional_filters,
+    construct_input_filters,
     generate_poisson_stim_times,
     generate_regular_stim_times,
     generate_oscillatory_drive,
@@ -26,7 +26,7 @@ def construct(params, rng):
     W_0 = construct_connectivity_matrix(params)
     W_0 = dales_law_transform(W_0)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
-    W = construct_additional_filters(
+    W = construct_input_filters(
         W, excit_idx[:params['n_stim']], params['stim_scale'],
         params['stim_strength'])
 
