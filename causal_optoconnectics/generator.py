@@ -140,7 +140,7 @@ def dales_law_transform(W_0):
     return W_0
 
 
-def sparsify(W_0, sparsity, rng)=None:
+def sparsify(W_0, sparsity, rng=None):
     rng = default_rng() if rng is None else rng
     indices = np.unravel_index(
         rng.choice(
