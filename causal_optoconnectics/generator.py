@@ -10,6 +10,7 @@ from .tools import roll_pad
 def clipped_lognormal(mu, sigma, size, low, high, rng=None, max_iter=100000):
     rng = default_rng() if rng is None else rng
     sample = rng.lognormal(mu, sigma, size)
+    itr = 0
     while ((sample < low) | (sample > high)).any():
         mask = list(np.where((sample < low) | (sample > high)))
         subsample = rng.lognormal(mu, sigma, size)
@@ -19,6 +20,7 @@ def clipped_lognormal(mu, sigma, size, low, high, rng=None, max_iter=100000):
             mask[i] = mask[i][:n]
             submask[i] = submask[i][:n]
         sample[tuple(mask)] = subsample[tuple(submask)]
+        itr += 1
         if itr > max_iter:
             print('Did not reach the desired limits in "max_iter" iterations')
             return None

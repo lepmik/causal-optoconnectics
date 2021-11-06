@@ -68,6 +68,7 @@ if __name__ == '__main__':
         'drive_strength': -100,
         'drive_period': 100,
         'alpha': 0.2,
+        'sparsity': 0.9,
         'glorot_normal': {
             'mu': 0,
             'sigma': 7

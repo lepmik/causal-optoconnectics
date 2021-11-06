@@ -160,8 +160,6 @@ if __name__ == '__main__':
     connectivity = {}
 
     fname = data_path / f'rank_{rank}.npz'
-    if fname.exists():
-        continue
 
     if rank == 0:
         connectivity[path] = construct(params, rng=rng)
