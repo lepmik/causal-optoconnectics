@@ -93,13 +93,13 @@ def construct(params, rng):
 
     W_0 = construct_connectivity_matrix(params)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
-    W = construct_input_filters(
-        W, excit_idx[:params['n_stim']], params['stim_scale'],
-        params['stim_strength'])
 
     stim_amps = compute_stim_amps(params)
     W = construct_input_filters(
-        W, stim_amps.keys(), params['drive_scale'], stim_amps)
+        W, stim_amps.keys(), params['stim_scale'], stim_amps)
+
+    W = construct_input_filters(
+        W, range(len(W_0)), params['drive_scale'], params['drive_strength'])
 
     return W, W_0, stimulus, excit_idx, inhib_idx
 
