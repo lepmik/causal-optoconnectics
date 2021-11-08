@@ -94,7 +94,7 @@ def construct(params, rng):
     W_0 = construct_connectivity_matrix(params)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
 
-    stim_amps = compute_stim_amps(params)
+    stim_amps = compute_stim_amps(params, range(params['n_neurons_ex']), rng)
     W = construct_input_filters(
         W, stim_amps.keys(), params['stim_scale'], stim_amps)
 
