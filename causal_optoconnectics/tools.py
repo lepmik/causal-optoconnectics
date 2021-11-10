@@ -331,11 +331,11 @@ def roll_pad(x, i, axis=1):
         raise NotImplementedError
 
 
-def process_metadata(W, stim_index, params):
+def process_metadata(source, target, W, stim_index, ignore_self_connection=True):
     pairs = []
-    for i in range(params['n_neurons']):
-        for j in range(params['n_neurons']):
-            if i==j:
+    for i in source:
+        for j in target:
+            if i==j and ignore_self_connection:
                 continue
             pairs.append({
                 'source': i,

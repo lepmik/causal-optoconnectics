@@ -40,9 +40,13 @@ def reduce_sum(dfs):
         'y0xinv_sum',
         'n_trials'
     ]
-    result = dfs[0]
+    result = dfs[0].copy()
     for key in keys:
-        result[key] = sum([df[key].values for df in dfs])
+        if key != 'n_trials':
+            result[key] = sum([df[key].values for df in dfs])
+        else:
+            assert (dfs[0][key].values == dfs[0][key].values).all()
+            result[key] = sum([df[key].values[0] for df in dfs])
     return result
 
 def compute_connectivity_from_sum(row):
@@ -71,7 +75,7 @@ def compute(fn):
     X, W_0, W, params = load(fn)
     params.pop('seed')
     stim_index = len(W_0)
-    results_meta = pd.DataFrame(process_metadata(W=W, stim_index=stim_index, params=params))
+    results_meta = pd.DataFrame(process_metadata(range(len(W_0)), range(len(W_0)), W=W, stim_index=stim_index))
     sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
     neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
     trials = compute_trials(X, neurons, stim_index)
@@ -124,7 +128,6 @@ if __name__ == '__main__':
             compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])
         sample.to_csv(row.path / 'sample.csv')
-        values = pd.concat((values, sample))
         data_df.loc[i, 'error_beta_did'] = min_error(sample, 'beta_did').fun
         data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did').fun
         data_df.loc[i, 'error_beta'] = min_error(sample, 'beta').fun
@@ -133,4 +136,3 @@ if __name__ == '__main__':
     data_df.loc[:,'error_diff'] = data_df.error_beta - data_df.error_beta_iv
     data_df.loc[:,'error_diff_did'] = data_df.error_beta_did - data_df.error_beta_iv_did
     data_df.to_csv(data_path / 'summary.csv')
-    values.to_csv(data_path / 'values.csv')
