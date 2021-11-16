@@ -20,20 +20,21 @@ def construct_connectivity_matrix(params):
     W_ex = clipped_lognormal(
         mu=params['lognormal']['mu_ex'],
         sigma=params['lognormal']['sigma_ex'],
-        size=(params['n_ex_neurons'], params['n_neurons']),
+        size=(params['n_neurons_ex'], params['n_neurons']),
         low=params['lognormal']['low_ex'],
         high=params['lognormal']['high_ex'],
     )
     W_in = clipped_lognormal(
         mu=params['lognormal']['mu_in'],
         sigma=params['lognormal']['sigma_in'],
-        size=(params['n_ex_neurons'], params['n_neurons']),
+        size=(params['n_neurons_in'], params['n_neurons']),
         low=params['lognormal']['low_in'],
         high=params['lognormal']['high_in'],
     )
     W_ex = sparsify(W_ex, params['sparsity_ex'], rng)
     W_in = sparsify(W_in, params['sparsity_in'], rng)
     W_0 = np.concatenate([W_ex, -W_in], 0)
+    assert W_0.shape == (params['n_neurons'], params['n_neurons'])
     np.fill_diagonal(W_0, 0)
     return W_0
 
@@ -51,7 +52,7 @@ def compute_stim_amps(params, nodes, rng):
         dz = z[1] - z[0]
         dV = A * dz
         density = params['stim_n_ex'] / sum(dV)
-        params['density'] = density
+        params['density'] = float(density)
         N = dV * density
         return N
 
@@ -111,9 +112,9 @@ if __name__ == '__main__':
 
     params = {
         'const': 5,
-        'n_neurons': 10000,
-        'n_ex_neurons': 8000,
-        'n_in_neurons': 2000,
+        'n_neurons': 500,
+        'n_neurons_ex': 400,
+        'n_neurons_in': 100,
         'dt': 1e-3,
         'ref_scale': 10,
         'abs_ref_scale': 3,
@@ -121,17 +122,17 @@ if __name__ == '__main__':
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
         'stim_scale': 2,
-        'stim_strength': 5,
+        'stim_amp_ex': 5,
         'stim_period': 50,
         'stim_isi_min': 10,
         'stim_isi_max': 200,
-        'stim_n_ex': 1000,
+        'stim_n_ex': 100,
         'drive_scale': 10,
         'drive_strength': -10,
         'drive_period': 100,
         'alpha': 0.2,
         'sparsity_ex': 0.9,
-        'sparsity_in': 0.6, # balanced network, n_synapses = 800
+        'sparsity_in': 0.4, # balanced network, s_i = s_e * n_e / n_i
         'lognormal': {
             'mu_ex': 2,
             'sigma_ex': 4,
@@ -150,7 +151,7 @@ if __name__ == '__main__':
         'n': 1.36, # refraction index of gray matter
         'NA': 0.37, # Numerical Aperture of fiber
         'S': 10.3, # mm^-1 scattering index for rat, mouse = 11.2
-        'n_pos': 100,
+        'n_pos': 10,
         'depth': .7,
         'Imax': 642, # max current pA
         'K': 0.84, # half-maximal light sensitivity of the ChR2 mW/mm2
@@ -159,15 +160,14 @@ if __name__ == '__main__':
 
     rng = default_rng(params['seed'])
 
-    connectivity = {}
-
     fname = data_path / f'rank_{rank}.npz'
+    
+    connectivity = None
 
     if rank == 0:
-        connectivity[path] = construct(params, rng=rng)
+        connectivity = construct(params, rng=rng)
 
-    connectivity = comm.bcast(connectivity, root=0)
-    W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
+    W, W_0, stimulus, excit_idx, inhib_idx = comm.bcast(connectivity, root=0)
     res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
 
     np.savez(
