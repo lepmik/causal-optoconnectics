@@ -142,7 +142,7 @@ def dales_law_transform(W_0):
     return W_0
 
 
-def sparsify(W_0, sparsity, rng=None):
+def sparsify(W_0, sparsity, rng=None, inplace=True):
     rng = default_rng() if rng is None else rng
     indices = np.unravel_index(
         rng.choice(
@@ -152,8 +152,12 @@ def sparsify(W_0, sparsity, rng=None):
         ),
         W_0.shape
     )
-    W_0[indices] = 0
-    return W_0
+    if inplace:
+        W_out = W_0
+    else:
+        W_out = W_0.copy()
+    W_out[indices] = 0
+    return W_out
 
 
 def construct_connectivity_filters(W_0, params):
