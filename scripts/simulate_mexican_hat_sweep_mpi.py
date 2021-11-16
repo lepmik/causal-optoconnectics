@@ -81,8 +81,6 @@ if __name__ == '__main__':
         path =  data_path / f'mex_hat_ss{stim_strength}'.replace('.','')
         path.mkdir(exist_ok=True)
         fname = path / f'rank_{rank}.npz'
-        if path.exists():
-            continue
 
         if rank == 0:
             connectivity[path] = construct(params, rng=rng)
