@@ -105,16 +105,16 @@ def construct(params, rng):
     return W, W_0, stimulus, excit_idx, inhib_idx
 
 if __name__ == '__main__':
-    data_path = pathlib.Path('datasets/simulation_1/realistic')
+    data_path = pathlib.Path('datasets/sweep_7')
     data_path.mkdir(parents=True, exist_ok=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
 
     params = {
         'const': 5,
-        'n_neurons': 500,
-        'n_neurons_ex': 400,
-        'n_neurons_in': 100,
+        'n_neurons': None,
+        'n_neurons_ex': None,
+        'n_neurons_in': None,
         'dt': 1e-3,
         'ref_scale': 10,
         'abs_ref_scale': 3,
@@ -122,11 +122,11 @@ if __name__ == '__main__':
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
         'stim_scale': 2,
-        'stim_strength': 5,
+        'stim_strength': 7,
         'stim_period': 50,
         'stim_isi_min': 10,
         'stim_isi_max': 200,
-        'n_stim': 100,
+        'n_stim': None,
         'drive_scale': 10,
         'drive_strength': -10,
         'drive_period': 100,
@@ -161,21 +161,28 @@ if __name__ == '__main__':
     rng = default_rng(params['seed'])
 
     fname = data_path / f'rank_{rank}.npz'
-    
+
     connectivity = None
 
-    if rank == 0:
-        connectivity = construct(params, rng=rng)
+    for n_neurons in [100, 200, 300, 400, 500]:
+        params.update({
+            'n_neurons': n_neurons,
+            'n_neurons_ex': int(0.8 * n_neurons),
+            'n_neurons_in': int(0.2 * n_neurons),
+            'n_stim': int(0.1 * n_neurons)
+        })
+        if rank == 0:
+            connectivity = construct(params, rng=rng)
 
-    W, W_0, stimulus, excit_idx, inhib_idx = comm.bcast(connectivity, root=0)
-    res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
+        W, W_0, stimulus, excit_idx, inhib_idx = comm.bcast(connectivity, root=0)
+        res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
 
-    np.savez(
-        fname,
-        data=res,
-        W=W,
-        W_0=W_0,
-        params=params,
-        excitatory_neuron_idx=excit_idx,
-        inhibitory_neuron_idx=inhib_idx
-    )
+        np.savez(
+            fname,
+            data=res,
+            W=W,
+            W_0=W_0,
+            params=params,
+            excitatory_neuron_idx=excit_idx,
+            inhibitory_neuron_idx=inhib_idx
+        )
