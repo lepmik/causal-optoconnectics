@@ -2,7 +2,7 @@ import numpy as np
 from numpy.random import default_rng
 import pathlib
 from mpi4py import MPI
-from causal_optoconnectics.generator import simulate,
+from causal_optoconnectics.generator import simulate
 
 
 if __name__ == '__main__':
