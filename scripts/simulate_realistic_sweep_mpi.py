@@ -160,11 +160,13 @@ if __name__ == '__main__':
 
     rng = default_rng(params['seed'])
 
-    fname = data_path / f'rank_{rank}.npz'
 
     connectivity = None
 
     for n_neurons in [100, 200, 300, 400, 500]:
+        path =  data_path / f'realistic_n{n_neurons}'
+        path.mkdir(exist_ok=True)
+        fname = path / f'rank_{rank}.npz'
         params.update({
             'n_neurons': n_neurons,
             'n_neurons_ex': int(0.8 * n_neurons),
