@@ -10,6 +10,7 @@ if __name__ == '__main__':
     assert len(sys.argv) == 3
     data_path = pathlib.Path(sys.argv[1]).absolute().resolve()
     set_seed = int(sys.argv[2])
+    print('SYS.ARGV', sys.argv[1:])
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     settings = None
@@ -22,7 +23,7 @@ if __name__ == '__main__':
                 ['params', 'W', 'W_0', 'stimulus', 'excitatory_neuron_idx', 'inhibitory_neuron_idx']
             )
             base_rank = max([int(fn.stem.split('_')[-1]) for fn in path.glob('rank_*.npz')])
-            seeds = [np.load(fn, allow_pickle=True)['params']['seed'] for fn in path.glob('rank_*.npz')]
+            seeds = [np.load(fn, allow_pickle=True)['params'][()]['seed'] for fn in path.glob('rank_*.npz')]
             settings = (params, W, W_0, stimulus, excit_idx, inhib_idx, base_rank, seeds)
         params, W, W_0, stimulus, excit_idx, inhib_idx, base_rank, seeds = comm.bcast(settings, root=0)
         seed = set_seed + rank

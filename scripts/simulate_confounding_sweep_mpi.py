@@ -74,7 +74,7 @@ if __name__ == '__main__':
         'seed': 12345 + rank
     }
     n_neuronss = [10, 20, 30, 40, 50]
-    stim_strengths = [1, 2, 3, 4, 5, 6, 7, 8]
+    stim_strengths = [0.0, 0.5]#, 1, 2, 3, 4, 5, 6, 7, 8]
     sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7]
 
     rng = default_rng(params['seed'])

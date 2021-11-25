@@ -63,7 +63,7 @@ if __name__ == '__main__':
     }
     rng = default_rng(params['seed'])
     n_neuronss = [10, 20, 30, 40, 50]
-    stim_strengths = [1, 2, 3, 4, 5, 6, 7, 8]
+    stim_strengths = [0.0, 0.5]#, 1, 2, 3, 4, 5, 6, 7, 8]
     sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7]
     connectivity = {}
     for n_neurons in n_neuronss:
