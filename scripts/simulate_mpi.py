@@ -24,7 +24,7 @@ if __name__ == '__main__':
             )
             base_rank = max([int(fn.stem.split('_')[-1]) for fn in path.glob('rank_*.npz')])
             seeds = [np.load(fn, allow_pickle=True)['params'][()]['seed'] for fn in path.glob('rank_*.npz')]
-            settings = (params, W, W_0, stimulus, excit_idx, inhib_idx, base_rank, seeds)
+            settings = (params[()], W, W_0, stimulus, excit_idx, inhib_idx, base_rank, seeds)
         params, W, W_0, stimulus, excit_idx, inhib_idx, base_rank, seeds = comm.bcast(settings, root=0)
         seed = set_seed + rank
         assert seed not in seeds

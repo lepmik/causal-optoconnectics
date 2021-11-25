@@ -74,7 +74,7 @@ if __name__ == '__main__':
         'seed': 12345 + rank
     }
     n_neuronss = [10, 20, 30, 40, 50]
-    stim_strengths = [0.0, 0.5]#, 1, 2, 3, 4, 5, 6, 7, 8]
+    stim_strengths = [1e-6]#, 0.5, 1, 2, 3, 4, 5, 6, 7, 8]
     sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7]
 
     rng = default_rng(params['seed'])
@@ -87,7 +87,7 @@ if __name__ == '__main__':
                 params['glorot_normal']['sigma'] = sigma
                 params['stim_strength'] = stim_strength
                 params['n_neurons'] = n_neurons
-                path =  f'n{n_neurons}_ss{stim_strength}_s{sigma}'.replace('.','')
+                path =  f'n{n_neurons}_ss{stim_strength:.2f}_s{sigma}'.replace('.','')
 
                 (data_path / path).mkdir(exist_ok=True)
                 fname = data_path / path/ f'rank_{rank}.npz'

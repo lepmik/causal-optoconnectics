@@ -72,13 +72,13 @@ if __name__ == '__main__':
         'seed': 12345 + rank,
     }
     rng = default_rng(params['seed'])
-    stim_strengths = [0, 0.5]#, 1, 2, 3, 4, 5, 6, 7, 8]
+    stim_strengths = [1e-6]#, 0.5, 1, 2, 3, 4, 5, 6, 7, 8]
 
     connectivity = {}
 
     for stim_strength in stim_strengths:
         params['stim_strength'] = stim_strength
-        path =  data_path / f'mex_hat_ss{stim_strength}'.replace('.','')
+        path =  data_path / f'mex_hat_ss{stim_strength:.2f}'.replace('.','')
         path.mkdir(exist_ok=True)
         fname = path / f'rank_{rank}.npz'
 

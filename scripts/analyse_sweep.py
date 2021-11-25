@@ -97,8 +97,9 @@ if __name__ == '__main__':
     data_df = pd.DataFrame({'path': paths})
 
     values = pd.DataFrame()
-    for i, row in tqdm(data_df.iterrows(), total=len(data_df)):
-
+    iterator = tqdm(data_df.iterrows(), total=len(data_df))
+    for i, row in iterator:
+        iterator.set_description(row.path.stem)
         with multiprocessing.Pool() as p:
             samples = p.map(compute, row.path.glob('rank_*.npz'))
 
