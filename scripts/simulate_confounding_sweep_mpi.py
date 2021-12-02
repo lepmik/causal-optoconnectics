@@ -91,8 +91,6 @@ if __name__ == '__main__':
 
                 (data_path / path).mkdir(exist_ok=True)
                 fname = data_path / path/ f'rank_{rank}.npz'
-                if fname.exists():
-                    continue
 
                 if rank == 0:
                     connectivity[path] = construct(params, rng=rng)

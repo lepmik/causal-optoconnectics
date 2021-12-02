@@ -109,7 +109,8 @@ if __name__ == '__main__':
         n_neurons = params['n_neurons']
 
         data_df.loc[i, params.keys()] = params.values()
-        data_df.loc[i, 'sigma'] = params['glorot_normal']['sigma']
+        if 'glorot_normal' in params:
+            data_df.loc[i, 'sigma'] = params['glorot_normal']['sigma']
 
         s_W = svd(W_0, compute_uv=False)
         data_df.loc[i, 'W_condition'] = s_W.max() / s_W.min()

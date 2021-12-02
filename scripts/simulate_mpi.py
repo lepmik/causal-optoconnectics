@@ -31,11 +31,10 @@ if __name__ == '__main__':
         params['seed'] = seed
         rng = default_rng(seed)
 
-        W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
         res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
 
         np.savez(
-            data_path / path / f'rank_{rank + base_rank}',
+            data_path / path / f'rank_{rank + base_rank + 1}',
             data=res,
             W=W,
             W_0=W_0,
