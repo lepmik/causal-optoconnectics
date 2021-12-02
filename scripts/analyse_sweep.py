@@ -29,18 +29,20 @@ rparams = {
 
 def reduce_sum(dfs):
     keys = [
-        'yz_sum',
-        'z_sum',
-        'yzinv_sum',
-        'zinv_sum',
-        'yx_sum',
-        'x_sum',
-        'yxinv_sum',
-        'xinv_sum',
-        'y0z_sum',
-        'y0zinv_sum',
-        'y0x_sum',
-        'y0xinv_sum',
+        "yz_sum",
+        "z_sum",
+        "yzinv_sum",
+        "zinv_sum",
+        "yx_sum",
+        "x_sum",
+        "yxinv_sum",
+        "xinv_sum",
+        "y0z_sum",
+        "x0z_sum",
+        "y0x_sum",
+        "y0zinv_sum",
+        "x0zinv_sum",
+        "y0xinv_sum",
         'n_trials'
     ]
     result = dfs[0].copy()
