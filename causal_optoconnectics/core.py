@@ -118,12 +118,14 @@ class Connectivity:
             self.x_sum = x.sum()
             self.yxinv_sum = (y*(1-x)).sum()
             self.xinv_sum = (1-x).sum()
+            self.xz_sum = (x*z).sum()
+            self.xzinv_sum = (x*(1-z)).sum()
             self.y0z_sum = (y0*z).sum()
-            self.x0z_sum = (x0*z).sum()
             self.y0x_sum = (y0*x).sum()
             self.y0zinv_sum = (y0*(1-z)).sum()
-            self.x0zinv_sum = (x0*(1-z)).sum()
             self.y0xinv_sum = (y0*(1-x)).sum()
+            self.x0z_sum = (x0*z).sum()
+            self.x0zinv_sum = (x0*(1-z)).sum()
         if compute_values:
             self.compute()
 

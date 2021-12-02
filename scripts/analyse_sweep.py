@@ -37,12 +37,14 @@ def reduce_sum(dfs):
         "x_sum",
         "yxinv_sum",
         "xinv_sum",
+        "xz_sum",
+        "xzinv_sum",
         "y0z_sum",
-        "x0z_sum",
-        "y0x_sum",
         "y0zinv_sum",
-        "x0zinv_sum",
+        "y0x_sum",
         "y0xinv_sum",
+        "x0z_sum",
+        "x0zinv_sum",
         'n_trials'
     ]
     result = dfs[0].copy()
