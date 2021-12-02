@@ -99,18 +99,19 @@ class Connectivity:
         if compute_sums:
             self.n_trials, n_bins = pre.shape
             assert n_bins % 2 == 0
-            #stim_idx = int(n_bins / 2)
             n_response = y2-y1
 
             x = pre[:, x1:x2].sum(1).astype(bool)
             y = post[:, y1:y2].sum(1).astype(bool)
             z = pre[:, z1:z2].sum(1).astype(bool)
 
-            #y0 = post[:, stim_idx-n_response:stim_idx].sum(1).astype(bool)
+            # for DiD
             y0 = post[:,y1-n_response:y2-n_response].sum(1).astype(bool)
 
             self.yz_sum = (y*z).sum()
             self.z_sum = z.sum()
+            self.yzinv_sum = y*(1-z)).sum()
+            self.zinv_sum = (1-z).sum()
             self.yx_sum = (y*x).sum()
             self.x_sum = x.sum()
             self.yxinv_sum = (y*(1-x)).sum()
@@ -118,11 +119,14 @@ class Connectivity:
             self.y0z_sum = (y0*z).sum()
             self.y0x_sum = (y0*x).sum()
             self.y0xinv_sum = (y0*(1-x)).sum()
+            self.y0zinv_sum = (y0*(1-z)).sum()
         if compute_values:
             self.compute()
 
     def compute(self):
         y_refractory = _divide(self.yz_sum, self.z_sum)
+
+        y_response_iv = _divide(self.yzinv_sum, self.zinv_sum)
 
         y_response = _divide(self.yx_sum, self.x_sum)
 
@@ -130,18 +134,24 @@ class Connectivity:
 
         y0_refractory = _divide(self.y0z_sum, self.z_sum)
 
+        y0_response_iv = _divide(self.y0zinv_sum, self.zinv_sum)
+
         y0_response = _divide(self.y0x_sum, self.x_sum)
 
         y0_nospike = _divide(self.y0xinv_sum, self.xinv_sum)
 
-        # standard iv
-        self.beta_iv = y_response - y_refractory
+        # standard IV
+        self.beta_iv = y_response_iv - y_refractory
+        # CACE
+        self.beta_cace = y_response - y_refractory
         # OLS
-        self.beta = y_response - y_nospike
+        self.beta_ols = y_response - y_nospike
 
         # DiD iv
-        self.beta_iv_did = self.beta_iv - (y0_response - y0_refractory)
+        self.beta_iv_did = self.beta_iv - (y0_response_iv - y0_refractory)
+        # DiD cace
+        self.beta_cace_did = self.beta_cace - (y0_response - y0_refractory)
         # OLS
-        self.beta_did = self.beta - (y0_response - y0_nospike)
+        self.beta_ols_did = self.beta_ols - (y0_response - y0_nospike)
 
         self.hit_rate = self.x_sum / self.n_trials

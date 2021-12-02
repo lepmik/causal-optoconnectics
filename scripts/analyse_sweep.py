@@ -31,11 +31,14 @@ def reduce_sum(dfs):
     keys = [
         'yz_sum',
         'z_sum',
+        'yzinv_sum',
+        'zinv_sum',
         'yx_sum',
         'x_sum',
         'yxinv_sum',
         'xinv_sum',
         'y0z_sum',
+        'y0zinv_sum',
         'y0x_sum',
         'y0xinv_sum',
         'n_trials'
@@ -118,6 +121,12 @@ if __name__ == '__main__':
         data_df.loc[i, 'W_smax'] = s_W.max()
 
         x = decompress_events(X, len(W), params['n_time_step'])
+
+        s_x = svd(x[:len(W_0)], compute_uv=False)
+        data_df.loc[i, 'x_condition'] = s_x.max() / s_x.min()
+        data_df.loc[i, 'x_smin'] = s_x.min()
+        data_df.loc[i, 'x_smax'] = s_x.max()
+
         cov_x = np.cov(x[:len(W_0)])
         s_cov = svd(cov_x, compute_uv=False)
         data_df.loc[i, 'cov_condition'] = s_cov.max() / s_cov.min()
