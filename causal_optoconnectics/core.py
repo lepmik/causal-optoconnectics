@@ -110,7 +110,7 @@ class Connectivity:
 
             self.yz_sum = (y*z).sum()
             self.z_sum = z.sum()
-            self.yzinv_sum = y*(1-z)).sum()
+            self.yzinv_sum = (y*(1-z)).sum()
             self.zinv_sum = (1-z).sum()
             self.yx_sum = (y*x).sum()
             self.x_sum = x.sum()
