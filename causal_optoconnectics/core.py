@@ -78,6 +78,14 @@ def find_response_spikes(x, y, s, z1, z2, dt):
     return Z, X, Y
 
 
+def _divide(a, b):
+    try:
+        value = a / b
+    except ZeroDivisionError:
+        value = float('Inf')
+    return value
+
+
 class Connectivity:
     def __init__(self, pre=None, post=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None, compute_values=True, compute_sums=True):
         '''
@@ -114,17 +122,17 @@ class Connectivity:
             self.compute()
 
     def compute(self):
-        y_refractory = self.yz_sum / self.z_sum
+        y_refractory = _divide(self.yz_sum, self.z_sum)
 
-        y_response = self.yx_sum / self.x_sum
+        y_response = _divide(self.yx_sum, self.x_sum)
 
-        y_nospike = self.yxinv_sum / self.xinv_sum
+        y_nospike = _divide(self.yxinv_sum, self.xinv_sum)
 
-        y0_refractory = self.y0z_sum / self.z_sum
+        y0_refractory = _divide(self.y0z_sum, self.z_sum)
 
-        y0_response = self.y0x_sum / self.x_sum
+        y0_response = _divide(self.y0x_sum, self.x_sum)
 
-        y0_nospike = self.y0xinv_sum / self.xinv_sum
+        y0_nospike = _divide(self.y0xinv_sum, self.xinv_sum)
 
         # standard iv
         self.beta_iv = y_response - y_refractory
