@@ -139,11 +139,17 @@ if __name__ == '__main__':
             compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])
         sample.to_csv(row.path / 'sample.csv')
-        data_df.loc[i, 'error_beta_did'] = min_error(sample, 'beta_did').fun
+        data_df.loc[i, 'error_beta_ols_did'] = min_error(sample, 'beta_ols_did').fun
         data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did').fun
-        data_df.loc[i, 'error_beta'] = min_error(sample, 'beta').fun
+        data_df.loc[i, 'error_beta_cace_did'] = min_error(sample, 'beta_cace_did').fun
+        data_df.loc[i, 'error_beta_ols'] = min_error(sample, 'beta_ols').fun
         data_df.loc[i, 'error_beta_iv'] = min_error(sample, 'beta_iv').fun
+        data_df.loc[i, 'error_beta_cace'] = min_error(sample, 'beta_cace').fun
 
-    data_df.loc[:,'error_diff'] = data_df.error_beta - data_df.error_beta_iv
-    data_df.loc[:,'error_diff_did'] = data_df.error_beta_did - data_df.error_beta_iv_did
+    data_df.loc[:,'error_diff_ols_iv'] = data_df.error_beta_ols - data_df.error_beta_iv
+    data_df.loc[:,'error_diff_ols_cace'] = data_df.error_beta_ols - data_df.error_beta_cace
+    data_df.loc[:,'error_diff_cace_iv'] = data_df.error_beta_cace - data_df.error_beta_iv
+    data_df.loc[:,'error_diff_ols_iv_did'] = data_df.error_beta_ols_did - data_df.error_beta_iv_did
+    data_df.loc[:,'error_diff_ols_cace_did'] = data_df.error_beta_ols_did - data_df.error_beta_cace_did
+    data_df.loc[:,'error_diff_cace_iv_did'] = data_df.error_beta_cace_did - data_df.error_beta_iv_did
     data_df.to_csv(data_path / 'summary.csv')
