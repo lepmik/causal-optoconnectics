@@ -156,15 +156,15 @@ class Connectivity:
 
         # standard IV
         self.beta_iv = _divide(y_response_norefractory - y_refractory, x_response_norefractory - x_refractory)
-        # CACE
-        self.beta_cace = y_response_spike - y_refractory
+        # home brew
+        self.beta_brew = y_response_spike - y_refractory
         # OLS
         self.beta_ols = y_response_spike - y_nospike
 
         # DiD iv
         self.beta_iv_did = self.beta_iv - _divide(y0_response_norefractory - y0_refractory, x0_response_norefractory - x0_refractory)
         # DiD cace
-        self.beta_cace_did = self.beta_cace - (y0_response - y0_refractory)
+        self.beta_brew_did = self.beta_brew - (y0_response - y0_refractory)
         # OLS
         self.beta_ols_did = self.beta_ols - (y0_response - y0_nospike)
 

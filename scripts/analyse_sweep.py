@@ -145,15 +145,15 @@ if __name__ == '__main__':
         sample.to_csv(row.path / 'sample.csv')
         data_df.loc[i, 'error_beta_ols_did'] = min_error(sample, 'beta_ols_did').fun
         data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did').fun
-        data_df.loc[i, 'error_beta_cace_did'] = min_error(sample, 'beta_cace_did').fun
+        data_df.loc[i, 'error_beta_brew_did'] = min_error(sample, 'beta_brew_did').fun
         data_df.loc[i, 'error_beta_ols'] = min_error(sample, 'beta_ols').fun
         data_df.loc[i, 'error_beta_iv'] = min_error(sample, 'beta_iv').fun
-        data_df.loc[i, 'error_beta_cace'] = min_error(sample, 'beta_cace').fun
+        data_df.loc[i, 'error_beta_brew'] = min_error(sample, 'beta_brew').fun
 
     data_df.loc[:,'error_diff_ols_iv'] = data_df.error_beta_ols - data_df.error_beta_iv
-    data_df.loc[:,'error_diff_ols_cace'] = data_df.error_beta_ols - data_df.error_beta_cace
-    data_df.loc[:,'error_diff_cace_iv'] = data_df.error_beta_cace - data_df.error_beta_iv
+    data_df.loc[:,'error_diff_ols_brew'] = data_df.error_beta_ols - data_df.error_beta_brew
+    data_df.loc[:,'error_diff_brew_iv'] = data_df.error_beta_brew - data_df.error_beta_iv
     data_df.loc[:,'error_diff_ols_iv_did'] = data_df.error_beta_ols_did - data_df.error_beta_iv_did
-    data_df.loc[:,'error_diff_ols_cace_did'] = data_df.error_beta_ols_did - data_df.error_beta_cace_did
-    data_df.loc[:,'error_diff_cace_iv_did'] = data_df.error_beta_cace_did - data_df.error_beta_iv_did
+    data_df.loc[:,'error_diff_ols_brew_did'] = data_df.error_beta_ols_did - data_df.error_beta_brew_did
+    data_df.loc[:,'error_diff_brew_iv_did'] = data_df.error_beta_brew_did - data_df.error_beta_iv_did
     data_df.to_csv(data_path / 'summary.csv')
