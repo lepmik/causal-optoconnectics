@@ -172,4 +172,4 @@ class Connectivity:
         # OLS
         self.beta_ols_did = self.beta_ols - (y0_response - y0_nospike)
 
-        self.hit_rate = self.x_sum / self.n_trials
+        self.hit_rate = _divide(self.x_sum, self.n_trials)
