@@ -97,11 +97,14 @@ if __name__ == '__main__':
                 params['stim_strength'] = stim_strength
                 params['n_neurons'] = n_neurons
                 path =  f'n{n_neurons}_ss{stim_strength:.2f}_s{sigma}'.replace('.','')
-                if rank == 0:
-                    connectivity[path] = construct(params, rng=rng)
                 if (data_path / path).exists():
                     continue
-                (data_path / path).mkdir(exist_ok=True)
+                if rank == 0:
+                    connectivity[path] = construct(params, rng=rng)
+                comm.Barrier()
+                if rank == 0:
+                    (data_path / path).mkdir(exist_ok=True)
+
                 fname = data_path / path/ f'rank_{rank}.npz'
 
                 connectivity = comm.bcast(connectivity, root=0)
