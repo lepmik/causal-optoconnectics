@@ -25,13 +25,19 @@ def construct(params, rng):
         rng=rng
     )
 
-    binned_drive_ex = generate_regular_stim_times(
+    binned_drive_ex = generate_poisson_stim_times(
         params['drive_period_ex'],
-        params['n_time_step']
+        params['drive_isi_min_ex'],
+        params['drive_isi_max_ex'],
+        params['n_time_step'],
+        rng=rng
     )
-    binned_drive_in = generate_regular_stim_times(
+    binned_drive_in = generate_poisson_stim_times(
         params['drive_period_in'],
-        params['n_time_step']
+        params['drive_isi_min_in'],
+        params['drive_isi_max_in'],
+        params['n_time_step'],
+        rng=rng
     )
     stimulus = np.concatenate((binned_stim_times, binned_drive_ex, binned_drive_in), 0)
     W_0 = construct_connectivity_matrix(params)
@@ -71,9 +77,13 @@ if __name__ == '__main__':
         'drive_scale_ex': 10,
         'drive_strength_ex': 2,
         'drive_period_ex': 100,
+        'drive_isi_min_ex': 30,
+        'drive_isi_max_ex': 400,
         'drive_scale_in': 10,
         'drive_strength_in': -5,
         'drive_period_in': 100,
+        'drive_isi_min_in': 30,
+        'drive_isi_max_in': 400,
         'alpha': 0.2,
         'glorot_normal': {
             'mu': 0,
@@ -102,8 +112,7 @@ if __name__ == '__main__':
                 if rank == 0:
                     connectivity[path] = construct(params, rng=rng)
                 comm.Barrier()
-                if rank == 0:
-                    (data_path / path).mkdir(exist_ok=True)
+                (data_path / path).mkdir(exist_ok=True)
 
                 fname = data_path / path/ f'rank_{rank}.npz'
 

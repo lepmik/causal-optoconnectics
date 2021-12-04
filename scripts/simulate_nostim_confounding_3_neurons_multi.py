@@ -23,7 +23,7 @@ from causal_optoconnectics.generator import (
 
 if __name__ == '__main__':
     import os
-    data_path = pathlib.Path('full-confounding-3-neurons/sweep_1')
+    data_path = pathlib.Path('nostim-confounding-3-neurons/sweep_1')
     data_path.mkdir(parents=True, exist_ok=True)
     params = {
         'const': 5.,
@@ -35,17 +35,16 @@ if __name__ == '__main__':
         'spike_scale': 5,
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
-        'stim_scale': 2,
-        'stim_strength': 5,
-        'stim_period': 50,
-        'stim_isi_min': 10,
-        'stim_isi_max': 200,
         'drive_scale_ex': 10,
-        'drive_strength_ex': 5,
-        'drive_period_ex': 10,
+        'drive_strength_ex': 2,
+        'drive_period_ex': 100,
+        'drive_isi_min_ex': 30,
+        'drive_isi_max_ex': 400,
         'drive_scale_in': 10,
-        'drive_strength_in': -10,
+        'drive_strength_in': -5,
         'drive_period_in': 100,
+        'drive_isi_min_in': 30,
+        'drive_isi_max_in': 400,
         'alpha': 0.2,
         'n_time_step': int(1e6),
         'seed': 12345
@@ -61,24 +60,21 @@ if __name__ == '__main__':
         [0, 0, 0]
     ])
 
-    # set stim
-    binned_stim_times = generate_poisson_stim_times(
-        params['stim_period'],
-        params['stim_isi_min'],
-        params['stim_isi_max'],
+    binned_drive_ex = generate_poisson_stim_times(
+        params['drive_period_ex'],
+        params['drive_isi_min_ex'],
+        params['drive_isi_max_ex'],
         params['n_time_step'],
         rng=rng
     )
-
-    binned_drive_ex = generate_regular_stim_times(
-        params['drive_period_ex'],
-        params['n_time_step']
-    )
-    binned_drive_in = generate_regular_stim_times(
+    binned_drive_in = generate_poisson_stim_times(
         params['drive_period_in'],
-        params['n_time_step']
+        params['drive_isi_min_in'],
+        params['drive_isi_max_in'],
+        params['n_time_step'],
+        rng=rng
     )
-    stimulus = np.concatenate((binned_stim_times, binned_drive_ex, binned_drive_in), 0)
+    stimulus = np.concatenate((binned_drive_ex, binned_drive_in), 0)
 
 
     for conn_strength in np.arange(0,8,1):
