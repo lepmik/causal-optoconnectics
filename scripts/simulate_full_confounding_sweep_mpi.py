@@ -97,7 +97,8 @@ if __name__ == '__main__':
                 params['stim_strength'] = stim_strength
                 params['n_neurons'] = n_neurons
                 path =  f'n{n_neurons}_ss{stim_strength:.2f}_s{sigma}'.replace('.','')
-
+                if (data_path / path).exists():
+                    continue
                 (data_path / path).mkdir(exist_ok=True)
                 fname = data_path / path/ f'rank_{rank}.npz'
 

@@ -64,10 +64,6 @@ if __name__ == '__main__':
         'mex_a': 0.9993,
         'mex_r': 5e3,
         'alpha': 0.2,
-        'glorot_normal': {
-            'mu': 0,
-            'sigma': 5
-        },
         'n_time_step': int(1e6),
         'seed': 12345 + rank,
     }
