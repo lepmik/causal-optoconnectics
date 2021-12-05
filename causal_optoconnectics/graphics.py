@@ -15,7 +15,7 @@ def probplot(prob, sigma=1, xmin=-10, xmax=10, ymin=-10, ymax=10, ax=None, color
     if not sigma: # just to be sure the filter does nothing
         im = ax.imshow(prob, origin='lower')
     else:
-        im = ax.imshow(np.rot90(gaussian_filter(prob, sigma)), extent=(xmin, xmax, ymin, ymax))
+        im = ax.imshow(np.rot90(gaussian_filter(prob, sigma)))
     ax.set_xticks(np.arange(prob.shape[1]))
     ax.set_xticklabels(np.arange(xmin, xmax), rotation=45)
     ax.set_yticks(np.arange(prob.shape[0]))
