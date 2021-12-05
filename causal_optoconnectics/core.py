@@ -1,5 +1,4 @@
 import numpy as np
-import scipy.stats as st
 
 
 def _divide(a, b):
@@ -11,7 +10,7 @@ def _divide(a, b):
 
 
 class Connectivity:
-    def __init__(self, pre=None, post=None, x1=None, x2=None, y1=None, y2=None, z1=None, z2=None, compute_values=True, compute_sums=True):
+    def __init__(self, pre=None, post=None, params=None):
         '''
         pre/post are trials of size n_trials x n_bins
         assumes that the stimulation starts on the middle bin
@@ -20,7 +19,9 @@ class Connectivity:
         such that in one trial a response is true or false
         '''
         # this gives the possibility to give sums
-        if compute_sums:
+        if pre is not None and post is not None:
+            x1, x2, y1, y2, z1, z2 = map(
+                params.get, ['x1', 'x2', 'y1', 'y2', 'z1', 'z2'])
             self.n_trials, n_bins = pre.shape
             assert n_bins % 2 == 0
             n_response_y = y2-y1
@@ -50,15 +51,13 @@ class Connectivity:
             self.y0xinv_sum = (y0*(1-x)).sum()
             self.x0z_sum = (x0*z).sum()
             self.x0zinv_sum = (x0*(1-z)).sum()
-        if compute_values:
-            self.compute()
 
     def compute(self):
         y_refractory = _divide(self.yz_sum, self.z_sum)
 
         y_response_norefractory = _divide(self.yzinv_sum, self.zinv_sum)
 
-        x_refractory = _divide(self.xz_sum, self.z_sum)
+        # x_refractory = _divide(self.xz_sum, self.z_sum) # this is set to zero and asserted below
 
         x_response_norefractory = _divide(self.xzinv_sum, self.zinv_sum)
 
@@ -78,12 +77,12 @@ class Connectivity:
 
         y0_nospike = _divide(self.y0xinv_sum, self.xinv_sum)
 
-        if x_refractory != 0:
+        if self.xz_sum != 0:
             print('Warning: spike window mismatch, spikes in refractory period')
         # standard IV
         self.beta_iv = _divide(
             y_response_norefractory - y_refractory,
-            x_response_norefractory - x_refractory)
+            x_response_norefractory)
         # home brew
         self.beta_brew = y_response_spike - y_refractory
         # OLS
@@ -92,8 +91,8 @@ class Connectivity:
         # DiD iv
         self.beta_iv_did = _divide(
             (y_response_norefractory - y0_response_norefractory) - (y_refractory - y0_refractory),
-            (x_response_norefractory - x0_response_norefractory) - (x_refractory - x0_refractory))
-        # DiD cace
+            (x_response_norefractory - x0_response_norefractory) + x0_refractory) # - (x_refractory - x0_refractory)
+        # DiD brew
         self.beta_brew_did = self.beta_brew - (y0_response - y0_refractory)
         # OLS
         self.beta_ols_did = self.beta_ols - (y0_response - y0_nospike)

@@ -201,9 +201,9 @@ def generate_poisson_stim_times(period, low, high, size, rng=None):
 
 def construct_input_filters(W, indices, scale, strength):
     W = np.concatenate((W, np.zeros((1, W.shape[1], W.shape[2]))), 0)
-    if isinstance(strength, (int, float)):
+    if np.isscalar(strength):
         strength = {j: strength for j in indices}
-    
+
     for j in indices:
         W[-1, j, np.arange(scale)] = strength[j]
     return W

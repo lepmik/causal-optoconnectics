@@ -57,10 +57,7 @@ def reduce_sum(dfs):
     return result
 
 def compute_connectivity_from_sum(row):
-    conn = Connectivity(
-        compute_values=False,
-        compute_sums=False
-    )
+    conn = Connectivity()
     conn.__dict__.update(row.to_dict())
     conn.compute()
     result = conn.__dict__
@@ -82,13 +79,16 @@ def compute(fn):
     X, W_0, W, params = load(fn)
     params.pop('seed')
     stim_index = len(W_0)
-    results_meta = pd.DataFrame(process_metadata(range(len(W_0)), range(len(W_0)), W=W, stim_index=stim_index))
-    sample_meta = results_meta.query('source_stim and not target_stim and weight >= 0')
+    results_meta = pd.DataFrame(process_metadata(
+        range(len(W_0)), range(len(W_0)), W=W, stim_index=stim_index))
+    sample_meta = results_meta.query(
+        'source_stim and not target_stim and weight >= 0')
     neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
     trials = compute_trials(X, neurons, stim_index)
-    sums = pd.DataFrame([
-        process(pair=pair, W=W, stim_index=stim_index, trials=trials, params=params, compute_values=False, compute_sums=True)
-        for pair in sample_meta.pair.values])
+    sums = pd.DataFrame([process(
+        source=source, target=target, W=W, stim_index=stim_index,
+        trials=trials, params=params, compute_values=False)
+        for source, target in sample_meta.pair.values])
     sums.to_csv(fn.with_suffix('.csv'))
 
     return sums

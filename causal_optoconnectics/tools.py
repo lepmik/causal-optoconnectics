@@ -337,43 +337,37 @@ def process_metadata(source, target, W, stim_index, ignore_self_connection=True)
         for j in target:
             if i==j and ignore_self_connection:
                 continue
-            pairs.append({
-                'source': i,
-                'target': j,
-                'pair': (i,j),
-                'weight': W[i, j, 0],
-                'source_stim': W[stim_index, i, 0] > 0,
-                'source_stim_strength': W[stim_index, i, 0],
-                'target_stim': W[stim_index, j, 0] > 0,
-            })
+            pairs.append(process(i, j, W, stim_index, meta_only=True))
     return pairs
 
 
-def process(pair, W, stim_index, params, trials=None, n_trials=None, compute_values=True, compute_sums=True):
-    i, j = pair
-    if compute_sums:
-        pre, post = trials[i], trials[j]
+def process(source, target, W, stim_index, params=None, trials=None, n_trials=None, meta_only=False, compute_values=True):
+    if trials is not None:
+        pre, post = trials[source], trials[target]
         n_trials = len(pre) if n_trials is None else n_trials
         pre, post = pre[:n_trials], post[:n_trials]
     else:
         pre, post = None, None
+
+    result = {
+        'source': source,
+        'target': target,
+        'pair': (source, target),
+        'weight': W[source, target, 0],
+        'source_stim': W[stim_index, source, 0] > 0,
+        'source_stim_strength': W[stim_index, source, 0],
+        'target_stim': W[stim_index, target, 0] > 0,
+    }
+    if meta_only:
+        return result
+
     conn = Connectivity(
         pre,
         post,
-        *map(params.get, ['x1', 'x2', 'y1', 'y2', 'z1', 'z2']),
-        compute_values=compute_values,
-        compute_sums=compute_sums
+        params
     )
-
-    result = {
-        'source': i,
-        'target': j,
-        'pair': pair,
-        'weight': W[i, j, 0],
-        'source_stim': W[stim_index, i, 0] > 0,
-        'source_stim_strength': W[stim_index, i, 0],
-        'target_stim': W[stim_index, j, 0] > 0,
-    }
+    if compute_values:
+        conn.compute()
     result.update(conn.__dict__)
     result.update(params)
     return result
