@@ -78,7 +78,7 @@ class Connectivity:
 
         y0_nospike = _divide(self.y0xinv_sum, self.xinv_sum)
 
-        if x_refractory =! 0:
+        if x_refractory != 0:
             print('Warning: spike window mismatch, spikes in refractory period')
         # standard IV
         self.beta_iv = _divide(
