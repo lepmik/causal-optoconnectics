@@ -360,4 +360,4 @@ def plot_false_positives(samples, index, keys=['beta_ols_did', 'beta_iv_did', 'b
         pc.set_facecolor('gray')
         pc.set_edgecolor('k')
         pc.set_alpha(0.6)
-    plt.xticks([1, 2, 3], [fr'$\{key.split('_')[0]}_{{{",".join(key.split('_')[1:])}}}$' for key in keys])
+    plt.xticks([1, 2, 3], [fr'$\{key.split("_")[0]}_{{{",".join(key.split("_")[1:])}}}$' for key in keys])
