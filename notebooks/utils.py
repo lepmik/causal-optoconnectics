@@ -45,7 +45,7 @@ def bootstrap_pvalue(case, control, obs_diff, statistic=np.mean, alpha_ci=0.05):
     return pval, low, high, diffs, obs_diff
 
 
-def compute_error_trials(data_path, n_iter = 100, n_samples = 150):
+def compute_error_trials(data_path, n_iter=100, n_samples=150):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     data_dict = {
         'positives': {i: defaultdict(list) for i in range(len(paths))},
