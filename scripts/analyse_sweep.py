@@ -15,7 +15,9 @@ from causal_optoconnectics.tools import (
     error_norm,
     min_error,
     process,
-    process_metadata
+    process_metadata,
+    reduce_sum,
+    compute_connectivity_from_sum
 )
 
 rparams = {
@@ -26,42 +28,6 @@ rparams = {
     'z1': 9,
     'z2': 11,
 }
-
-def reduce_sum(dfs):
-    keys = [
-        "yz_sum",
-        "z_sum",
-        "yzinv_sum",
-        "zinv_sum",
-        "yx_sum",
-        "x_sum",
-        "yxinv_sum",
-        "xinv_sum",
-        "xz_sum",
-        "xzinv_sum",
-        "y0z_sum",
-        "y0zinv_sum",
-        "y0x_sum",
-        "y0xinv_sum",
-        "x0z_sum",
-        "x0zinv_sum",
-        'n_trials'
-    ]
-    result = dfs[0].copy()
-    for key in keys:
-        if key != 'n_trials':
-            result[key] = sum([df[key].values for df in dfs])
-        else:
-            assert (dfs[0][key].values == dfs[0][key].values).all()
-            result[key] = sum([df[key].values[0] for df in dfs])
-    return result
-
-def compute_connectivity_from_sum(row):
-    conn = Connectivity()
-    conn.__dict__.update(row.to_dict())
-    conn.compute()
-    result = conn.__dict__
-    return result
 
 
 def load(fn):
