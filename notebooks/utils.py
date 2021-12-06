@@ -87,7 +87,7 @@ def compute_errors(data_path):
     }
     for i, path in tqdm(enumerate(paths), total=len(paths)):
         samples = [pd.read_csv(p) for p in path.glob('rank*.csv')]
-        sample = reduce_sum([samples[j] for j in idxs])
+        sample = reduce_sum(samples)
         sample = pd.DataFrame([
             compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])
@@ -103,6 +103,37 @@ def compute_errors(data_path):
             errors[k].loc[i, 'error_beta_ols'] = err_fnc[k](df, 'beta_ols')
             errors[k].loc[i, 'error_beta_iv'] = err_fnc[k](df, 'beta_iv')
             errors[k].loc[i, 'error_beta_brew'] = err_fnc[k](df, 'beta_brew')
+    return errors
+
+
+def compute_error_confidence(errors, error_trials):
+    for k in errors:
+        for i, row in errors[k].iterrows():
+            with open(row.path / 'params.yaml', 'r') as f:
+                params = yaml.load(f)
+            errors[k].loc[i, params.keys()] = params.values()
+
+            statistic, pval = scipy.stats.wilcoxon(
+                error_trials[k][i]['error_beta_ols_did'],
+                error_trials[k][i]['error_beta_iv_did'],
+            )
+            errors[k].loc[i, 'error_ols_iv_did_pval'] = pval
+            errors[k].loc[i, 'error_ols_iv_did_statistic'] = statistic
+
+            error_trials[k][i]['error_diff_ols_iv_did'] = \
+                error_trials[k][i]['error_beta_ols_did'] - error_trials[k][i]['error_beta_iv_did']
+            error_trials[k][i]['error_diff_ols_iv'] = \
+                error_trials[k][i]['error_beta_ols'] - error_trials[k][i]['error_beta_iv']
+
+            errors[k].loc[i, 'error_diff_ols_iv_did'] = \
+                np.mean(error_trials[k][i]['error_diff_ols_iv_did'])
+            errors[k].loc[i, 'error_diff_ols_iv'] = \
+                np.mean(error_trials[k][i]['error_diff_ols_iv'])
+
+            errors[k].loc[i, 'error_diff_ols_iv_did_ci'] = \
+                str(bootstrap_ci(error_trials[k][i]['error_diff_ols_iv_did']))
+            errors[k].loc[i, 'error_diff_ols_iv_ci'] = \
+                str(bootstrap_ci(error_trials[k][i]['error_diff_ols_iv']))
     return errors
 
 
@@ -169,7 +200,7 @@ def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10):
 def compute_all_samples(data_path):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     grand_samples = {}
-    for i, path in tqdm(enumerate(paths)):
+    for i, path in tqdm(enumerate(paths), total=len(paths)):
         samples = [pd.read_csv(p) for p in path.glob('rank*.csv')]
         sample = reduce_sum(samples)
         grand_samples[i] = pd.DataFrame([
@@ -178,37 +209,7 @@ def compute_all_samples(data_path):
     return grand_samples
 
 
-def compute_error_confidence(errors):
-    for k in errors:
-        for i, row in errors[k].iterrows():
-            with open(row.path / 'params.yaml', 'r') as f:
-                params = yaml.load(f)
-            errors[k].loc[i, params.keys()] = params.values()
-
-            statistic, pval = scipy.stats.wilcoxon(
-                data_dict[k][i]['error_beta_ols_did'],
-                data_dict[k][i]['error_beta_iv_did'],
-            )
-            errors[k].loc[i, 'error_ols_iv_did_pval'] = pval
-            errors[k].loc[i, 'error_ols_iv_did_statistic'] = statistic
-
-            data_dict[k][i]['error_diff_ols_iv_did'] = \
-                data_dict[k][i]['error_beta_ols_did'] - data_dict[k][i]['error_beta_iv_did']
-            data_dict[k][i]['error_diff_ols_iv'] = \
-                data_dict[k][i]['error_beta_ols'] - data_dict[k][i]['error_beta_iv']
-
-            errors[k].loc[i, 'error_diff_ols_iv_did'] = \
-                np.mean(data_dict[k][i]['error_diff_ols_iv_did'])
-            errors[k].loc[i, 'error_diff_ols_iv'] = \
-                np.mean(data_dict[k][i]['error_diff_ols_iv'])
-
-            errors[k].loc[i, 'error_diff_ols_iv_did_ci'] = \
-                str(bootstrap_ci(data_dict[k][i]['error_diff_ols_iv_did']))
-            errors[k].loc[i, 'error_diff_ols_iv_ci'] = \
-                str(bootstrap_ci(data_dict[k][i]['error_diff_ols_iv']))
-    return errors
-
-def plot_error(errors, key):
+def plot_errors(errors, key):
     errors = {k: df.sort_values(key) for k, df in errors.items()}
     for k, df in errors.items():
         fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
@@ -234,6 +235,43 @@ def plot_error(errors, key):
         sns.despine()
         ax.set_xlabel(key.capitalize())
         ax.set_ylabel(r'$\mathrm{Error}$')
+        plt.title(k)
+        
+        
+def plot_error_trials(error_trials, key, alpha=0.5):
+    from matplotlib.lines import Line2D
+    for k, df in error_trials.items():
+        fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
+        steps = df[key].T
+        errors = df[key]
+
+        ax.plot(steps, errors['error_beta_ols_did'].T, color='C0', alpha=alpha)
+        ax.plot(steps[0], errors['error_beta_ols_did'].mean(), color='C0')
+
+        ax.plot(steps, errors['error_beta_iv_did'].T, color='C1', alpha=alpha)
+        ax.plot(steps[0], errors['error_beta_iv_did'].mean(), color='C1')
+
+        ax.plot(steps, errors['error_beta_brew_did'].T, color='C2', alpha=alpha)
+        ax.plot(steps[0], errors['error_beta_brew_did'].mean(), color='C2')
+
+        ax.plot(steps, errors['error_beta_ols'].T, color='C3', alpha=alpha)
+        ax.plot(steps[0], errors['error_beta_ols'].mean(), color='C3')
+
+        ax.plot(steps, errors['error_beta_iv'].T, color='C4', alpha=alpha)
+        ax.plot(steps[0], errors['error_beta_iv'].mean(), color='C4')
+
+        ax.plot(steps, errors['error_beta_brew'].mean(), color='C5', alpha=alpha)
+        ax.plot(steps[0], errors['error_beta_brew'].mean(), color='C5')
+
+        plt.legend(
+            handles=[Line2D([],[],c=c) for c in ['C0', 'C1', 'C2', 'C3', 'C4', 'C5']],
+            labels=[r'$\hat{\beta}_{OLS,DiD}$', r'$\hat{\beta}_{IV,DiD}$', r'$\hat{\beta}_{BR,DiD}$',
+                    r'$\hat{\beta_{OLS}}$',r'$\hat{\beta}_{IV}$', r'$\hat{\beta}_{BR}$'],
+            frameon=False)
+        ax.set_xscale('log')
+        sns.despine()
+        ax.set_xlabel('Trials')
+        ax.set_ylabel(r'$\mathrm{error}(\beta)$')
         plt.title(k)
 
 
@@ -288,35 +326,38 @@ def plot_error_convergence(convergence, index):
         plt.title(k)
 
 
-def plot_error_convergence_trials(convergence, index, alpha=0.5):
+def plot_error_convergence_trials(convergence, convergence_trials, index, alpha=0.5):
     from matplotlib.lines import Line2D
-    for k, df in convergence.items():
+    for k, df in convergence_trials.items():
         fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
-        steps = df[index]['n_trials'].T
-        errors = df[index]
+        steps_t = df[index]['n_trials']
+        errors_t = df[index]
+        
+        steps = convergence[k][index]['n_trials']
+        errors = convergence[k][index]
 
-        ax.plot(steps, errors['error_beta_ols_did'].T, color='C0', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_ols_did'].mean(), color='C0', alpha=alpha)
+        ax.plot(steps_t.T, errors_t['error_beta_ols_did'].T, color='C0', alpha=alpha)
+        ax.plot(steps, errors['error_beta_ols_did'], color='C0')
 
-        ax.plot(steps, errors['error_beta_iv_did'].T, color='C1', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_iv_did'].mean(), color='C1', alpha=alpha)
+        ax.plot(steps_t.T, errors_t['error_beta_iv_did'].T, color='C1', alpha=alpha)
+        ax.plot(steps, errors['error_beta_iv_did'], color='C1')
 
-        ax.plot(steps, errors['error_beta_brew_did'].T, color='C2', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_brew_did'].mean(), color='C2', alpha=alpha)
+        ax.plot(steps_t.T, errors_t['error_beta_brew_did'].T, color='C2', alpha=alpha)
+        ax.plot(steps, errors['error_beta_brew_did'], color='C2')
 
-        ax.plot(steps, errors['error_beta_ols'].T, color='C3', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_ols'].mean(), color='C3', alpha=alpha)
+        ax.plot(steps_t.T, errors_t['error_beta_ols'].T, color='C3', alpha=alpha)
+        ax.plot(steps, errors['error_beta_ols'], color='C3')
 
-        ax.plot(steps, errors['error_beta_iv'].T, color='C4', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_iv'].mean(), color='C4', alpha=alpha)
+        ax.plot(steps_t.T, errors_t['error_beta_iv'].T, color='C4', alpha=alpha)
+        ax.plot(steps, errors['error_beta_iv'], color='C4')
 
-        ax.plot(steps, errors['error_beta_brew'].mean(), color='C5', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_brew'].mean(), color='C5', alpha=alpha)
+        ax.plot(steps_t.T, errors_t['error_beta_brew'].T, color='C5', alpha=alpha)
+        ax.plot(steps, errors['error_beta_brew'], color='C5')
 
         plt.legend(
             handles=[Line2D([],[],c=c) for c in ['C0', 'C1', 'C2', 'C3', 'C4', 'C5']],
             labels=[r'$\hat{\beta}_{OLS,DiD}$', r'$\hat{\beta}_{IV,DiD}$', r'$\hat{\beta}_{BR,DiD}$',
-                    r'$\hat{\beta_{OLS}}$',r'$\hat{\beta}_{IV}$', r'$\hat{\beta}_{BR}$'],
+                    r'$\hat{\beta}_{OLS}$',r'$\hat{\beta}_{IV}$', r'$\hat{\beta}_{BR}$'],
             frameon=False)
         ax.set_xscale('log')
         sns.despine()
@@ -349,8 +390,8 @@ def plot_false_positives(samples, index, keys=['beta_ols_did', 'beta_iv_did', 'b
     fig, ax = plt.subplots(1, 1, figsize=(6,5), dpi=150)
     pos = np.random.uniform(.25,.75, size=len(df_zero))
     ax.scatter(pos + .5, df_zero[keys[0]], c=df_zero.hit_rate, s=5)
-    sc = ax.scatter(pos + 1.5, df_zero[keys[0]], c=df_zero.hit_rate, s=5)
-    ax.scatter(pos + 2.5, df_zero[keys[0]], c=df_zero.hit_rate, s=5)
+    sc = ax.scatter(pos + 1.5, df_zero[keys[1]], c=df_zero.hit_rate, s=5)
+    ax.scatter(pos + 2.5, df_zero[keys[2]], c=df_zero.hit_rate, s=5)
 
     cb = plt.colorbar(mappable=sc, ax=ax)
     cb.ax.yaxis.set_ticks_position('right')
