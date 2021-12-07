@@ -1,10 +1,16 @@
+"""
+This module contain all estimation methods from
+English et al. 2017, Neuron
+"""
 import numpy as np
 from .tools import hollow_kernel, poisson_continuity_correction
 from .cch import correlogram
 
+
 def cch_convolve(cch, width, hollow_fraction):
     '''Convolve a cross correlation histogram (cch) with a hollow kernel as in
-    _[1].
+    [1]
+
     Parameters
     ----------
     cch : array
@@ -13,6 +19,11 @@ def cch_convolve(cch, width, hollow_fraction):
         Width of kernel (std if gaussian)
     hollow_fraction : float
         Fractoin of the central bin to removed.
+
+    References
+    ----------
+    [1] : English et al. 2017, Neuron, Pyramidal Cell-Interneuron Circuit Architecture
+    and Dynamics in Hippocampal Networks
 
     Authors
     -------
@@ -37,7 +48,8 @@ def cch_convolve(cch, width, hollow_fraction):
 
 
 def cch_significance(t1, t2, bin_size, limit, hollow_fraction, width):
-    """
+    """Compute significance level
+
     Parameters
     ---------
     t1 : array
@@ -54,13 +66,15 @@ def cch_significance(t1, t2, bin_size, limit, hollow_fraction, width):
         Width of kernel (std if gaussian)
     hollow_fraction : float
         Fraction of the central bin to removed.
+
     References
     ----------
-    Stark, E., & Abeles, M. (2009). Unbiased estimation of precise temporal
+    [1] : English et al. 2017, Neuron, Pyramidal Cell-Interneuron Circuit Architecture
+    and Dynamics in Hippocampal Networks
+    [2] : Stark, E., & Abeles, M. (2009). Unbiased estimation of precise temporal
     correlations between spike trains. Journal of neuroscience methods, 179(1),
     90-100.
-    English et al. 2017, Neuron, Pyramidal Cell-Interneuron Circuit Architecture
-    and Dynamics in Hippocampal Networks
+
     Authors
     -------
     Tristan Stoeber, Mikkel Lepperød
@@ -86,7 +100,8 @@ def cch_significance(t1, t2, bin_size, limit, hollow_fraction, width):
 def transfer_probability(x, y, bin_size, limit, hollow_fraction, width,
                          y_mu, y_sigma):
     """Calculate the naive transfer probability using a cross correlation
-    histogram as in _[1].
+    histogram as in [1].
+
     Parameters
     ---------
     x : array
@@ -107,6 +122,7 @@ def transfer_probability(x, y, bin_size, limit, hollow_fraction, width,
         Average time for downstream spikes (y) in response to upstream spikes (x)
     y_sigma : float
         Standard deviation of downstream response times to upstream spikes (x).
+
     Returns
     -------
     trans_prob : float
@@ -117,8 +133,9 @@ def transfer_probability(x, y, bin_size, limit, hollow_fraction, width,
 
     References
     ----------
-    _[1] : English et al. 2017, Neuron, Pyramidal Cell-Interneuron Circuit Architecture
+    [1] : English et al. 2017, Neuron, Pyramidal Cell-Interneuron Circuit Architecture
     and Dynamics in Hippocampal Networks
+
     Authors
     -------
     Tristan Stoeber, Mikkel Lepperød

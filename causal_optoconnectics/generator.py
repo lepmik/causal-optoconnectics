@@ -1,3 +1,7 @@
+"""
+This module contain all simulator and generator code
+
+"""
 import scipy.stats as st
 import numpy as np
 from numpy.random import default_rng
@@ -8,6 +12,36 @@ from .tools import roll_pad
 
 
 def clipped_lognormal(mu, sigma, size, low, high, rng=None, max_iter=100000):
+    """Generate lognormal distribution clipped between low and high.
+
+    Parameters
+    ----------
+    mu : float
+        Desired mean `mu`.
+    sigma : float
+        Desired spread `sigma`.
+    size : int
+        number of samples `size`.
+    low : float
+        Lower cutoff value `low`.
+    high : float
+        Higher cutoff value `high`.
+    rng : generator
+        Random number generator if None numpy default_rng is used
+        (the default is None).
+    max_iter : int
+        Maximum number of iterations `max_iter` (the default is 100000).
+
+    Returns
+    -------
+    array
+        Samples.
+
+    Examples
+    --------
+    >>> samples = clipped_lognormal(10, 5, 100, 10, 200)
+
+    """
     rng = default_rng() if rng is None else rng
     sample = rng.lognormal(mu, sigma, size)
     itr = 0
@@ -22,12 +56,40 @@ def clipped_lognormal(mu, sigma, size, low, high, rng=None, max_iter=100000):
         sample[tuple(mask)] = subsample[tuple(submask)]
         itr += 1
         if itr > max_iter:
-            print('Did not reach the desired limits in "max_iter" iterations')
+            print(f'Did not reach the desired limits in max_iter={max_iter} iterations')
             return None
     return sample
 
 
 def clipped_poisson(mu, size, low, high, max_iter=100000, rng=None):
+    """Generate Poisson distribution clipped between low and high.
+
+    Parameters
+    ----------
+    mu : float
+        Desired mean `mu`.
+    size : int
+        Number of samples `size`.
+    low : float
+        Lower bound `low`.
+    high : flaot
+        Upper bound `high`.
+    max_iter : int
+        Maximum number of iterations (the default is 100000).
+    rng : generator
+        Random number generator if None default is numpy default_rng
+        (the default is None).
+
+    Returns
+    -------
+    array
+        Samples
+
+    Examples
+    --------
+    >>> samples = clipped_poisson(10, 100, 10, 100)
+
+    """
     rng = default_rng() if rng is None else rng
     truncated = rng.poisson(mu, size=size)
     itr = 0
@@ -44,41 +106,30 @@ def clipped_poisson(mu, size, low, high, max_iter=100000, rng=None):
     return truncated
 
 
-def simulate_simple_conditional_response(stim_times, make_post=False, response='gaussian', **p):
-    n_stim = len(stim_times)
-    idxs = np.random.permutation(np.arange(n_stim).astype(int))
-    n_stim_spikes = int(n_stim * p['stim_hit_chance'])
-    idxs_stim_spikes = idxs[:n_stim_spikes]
-    noise_x = np.random.uniform(0, p['stop_time'], p['pre_rate'] * p['stop_time'])
-    if response == 'gaussian':
-        response_x = st.norm.rvs(
-            loc=stim_times[idxs_stim_spikes] + p['stim_latency'],
-            scale=p['stim_latency_std'])
-    elif response == 'fixed':
-        response_x = stim_times[idxs_stim_spikes] + p['stim_latency']
-    spikes = np.sort(np.concatenate([response_x, noise_x]))
-    pre_spikes = prune(spikes, p['refractory'])
-    n_pre_spikes = len(pre_spikes)
-    if make_post:
-        n_post_spikes = int(n_pre_spikes * p['pre_hit_chance'])
-        idxs_post_spikes = np.random.permutation(np.arange(n_pre_spikes).astype(int))[:n_post_spikes]
-        noise_y = np.random.uniform(
-            0, p['stop_time'], int(p['post_rate'] * p['stop_time']))
-        if response == 'gaussian':
-            response_y = st.norm.rvs(
-                loc=pre_spikes[idxs_post_spikes] + p['latency'],
-                scale=p['latency_std'])
-        elif response == 'fixed':
-            response_y = pre_spikes[idxs_post_spikes] + p['latency']
-        post_spikes = np.sort(np.concatenate([response_y, noise_y]))
-        post_spikes = prune(post_spikes, p['refractory'])
-
-        return pre_spikes, post_spikes
-    else:
-        return pre_spikes
-
-
 def construct_connectivity_matrix(params, rng=None, self_connections=False):
+    """Construct connectivity matrix.
+
+    Parameters
+    ----------
+    params : dict
+        Must contain 'uniform', 'normal' or 'glorot_normal' `params`.
+    rng : generator
+        Random number generator if None default is numpy default_rng
+        (the default is None).
+    self_connections : bool
+        Allow self connections or not (the default is False).
+
+    Returns
+    -------
+    ndarray
+        Connectivity matrix.
+
+    Examples
+    --------
+    >>> params = {'normal': {'mu': 0, 'sigma': 1}, 'n_neurons': 10}
+    >>> W_0 = construct_connectivity_matrix(params)
+
+    """
     rng = default_rng() if rng is None else rng
     if 'uniform' in params:
         W_0 = rng.uniform(
@@ -98,15 +149,25 @@ def construct_connectivity_matrix(params, rng=None, self_connections=False):
             scale=params['glorot_normal']['sigma'] / np.sqrt(params['n_neurons']),
             size=(params['n_neurons'], params['n_neurons'])
         )
-    # elif 'lognormal' in params:
-    #     mu, sigma, size, low, high
-    #     W_0 = clipped_lognormal(
-    #         mu=params['lognormal']['mu'],
-    #         sigma=params['lognormal']['sigma'] / np.sqrt(params['n_neurons']),
-    #         size=(params['n_neurons'], params['n_neurons']),
-    #         low
-    #         high
-    #     )
+    elif 'lognormal' in params:
+        W_ex = clipped_lognormal(
+            mu=params['lognormal']['mu_ex'],
+            sigma=params['lognormal']['sigma_ex'],
+            size=(params['n_neurons_ex'], params['n_neurons']),
+            low=params['lognormal']['low_ex'],
+            high=params['lognormal']['high_ex'],
+        )
+        W_in = clipped_lognormal(
+            mu=params['lognormal']['mu_in'],
+            sigma=params['lognormal']['sigma_in'],
+            size=(params['n_neurons_in'], params['n_neurons']),
+            low=params['lognormal']['low_in'],
+            high=params['lognormal']['high_in'],
+        )
+        W_ex = sparsify(W_ex, params['sparsity_ex'], rng)
+        W_in = sparsify(W_in, params['sparsity_in'], rng)
+        W_0 = np.concatenate([W_ex, -W_in], 0)
+        assert W_0.shape == (params['n_neurons'], params['n_neurons'])
     else:
         raise ValueError()
     if not self_connections:
@@ -114,28 +175,78 @@ def construct_connectivity_matrix(params, rng=None, self_connections=False):
     return W_0
 
 
-def distance_wrapped(i, j, length):
+def _distance_wrapped(i, j, length):
+    """Helper function for mexican_hat"""
     a = (length / 2)
     d = abs(i - j)
     d[d > a] = abs(d[d > a] - length)
     return d
 
-def mexican_hat(i, j, a, sigma_1, sigma_2, n_neurons):
-    d = distance_wrapped(i, j, n_neurons)
+def _mexican_hat(i, j, a, sigma_1, sigma_2, n_neurons):
+    """Mexican hat or difference of Gaussians."""
+    d = _distance_wrapped(i, j, n_neurons)
     first = np.exp(- d**2 / (2 * sigma_1**2))
     second = a * np.exp(- d**2 / (2 * sigma_2**2))
     return first - second
 
 def construct_mexican_hat_connectivity(params):
+    """Construct Mexican hat or difference of Gaussians connectivity matrix.
+    Using np.exp(- d**2 / (2 * sigma_1**2)) - a * np.exp(- d**2 / (2 * sigma_2**2))
+
+    Parameters
+    ----------
+    params : dict
+        Must contain the following parameters:
+        'mex_a', 'mex_sigma_1', 'mex_sigma_2', 'n_neurons'
+
+    Returns
+    -------
+    type
+        Description of returned object.
+
+    Examples
+    --------
+    Examples should be written in doctest format, and
+    should illustrate how to use the function/class.
+    >>>
+
+    """
     W = np.zeros((params['n_neurons'],params['n_neurons']))
     j = np.arange(params['n_neurons'])
     for i in range(params['n_neurons']):
-        W[i,j] = mexican_hat(i, j, *map(params.get, ['mex_a', 'mex_sigma_1', 'mex_sigma_2', 'n_neurons']))
+        W[i,j] = mexican_hat(
+            i, j, *map(params.get,
+                ['mex_a', 'mex_sigma_1', 'mex_sigma_2', 'n_neurons']))
     np.fill_diagonal(W, 0)
     return W
 
 
 def dales_law_transform(W_0):
+    """Transform a connectivity matrix such that it follows Dale's law.
+
+    Parameters
+    ----------
+    W_0 : ndarray
+        Connectivity matrix `W_0`.
+
+    Note
+    ----
+    Doubles the number of neurons by performing the following transform
+    W_0 = ((W_0*(W_0>0), W_0*(W_0<0)), (W_0*(W_0>0), W_0*(W_0<0)))
+
+    Returns
+    -------
+    ndarray
+        Transformed connectivity matrix.
+
+    Examples
+    --------
+    >>> dales_law_transform(np.array([[1,-1], [-1,1]]))
+    array([[ 1,  0,  1,  0],
+           [ 0,  1,  0,  1],
+           [ 0, -1,  0, -1],
+           [-1,  0, -1,  0]])
+    """
     # Dale's law
     W_0 = np.concatenate((W_0*(W_0>0), W_0*(W_0<0)), 0)
     W_0 = np.concatenate((W_0, W_0), 1)
@@ -143,6 +254,34 @@ def dales_law_transform(W_0):
 
 
 def sparsify(W_0, sparsity, rng=None, inplace=True):
+    """Remove connections making the connectivity matrix more sparse.
+
+    Parameters
+    ----------
+    W_0 : ndarray
+        Connectivity matrix `W_0`.
+    sparsity : float
+        The percentage of connections to remove should be between 0 and 1.
+    rng : generator
+        Random number generator if None default is numpy default_rng
+        (the default is None).
+    inplace : bool
+        Make changes to input array or not (the default is True).
+
+    Returns
+    -------
+    ndarray
+        Sparse connectivity.
+
+    Examples
+    --------
+    >>> rng = np.random.default_rng(1234)
+    >>> sparsify(W_0=np.ones((3,3)), sparsity=0.9, rng=rng)
+    array([[0., 0., 0.],
+           [0., 0., 0.],
+           [0., 1., 0.]])
+
+    """
     rng = default_rng() if rng is None else rng
     indices = np.unravel_index(
         rng.choice(
@@ -161,6 +300,30 @@ def sparsify(W_0, sparsity, rng=None, inplace=True):
 
 
 def construct_connectivity_filters(W_0, params):
+    """Construct temporal connectivity filters.
+
+    Parameters
+    ----------
+    W_0 : ndarray
+        Base connectivity matrix `W_0`.
+    params : dict
+        Must contain the following parameters:
+        `ref_scale`, `abs_ref_scale`, `abs_ref_strength`, `rel_ref_strength`,
+        `spike_scale`, `alpha`.
+
+    Returns
+    -------
+    ndarray, ndarray, ndarray
+        W : The connectivity filter tensor
+        excitatory_neuron_idx : excitatory indices
+        inhibitory_neuron_idx : inhibitory indices
+
+    Examples
+    --------
+    >>> params = {'ref_scale': 10, 'abs_ref_scale': 3, 'spike_scale': 5, 'abs_ref_strength': -100, 'rel_ref_strength': -30, 'alpha': 0.2}
+    >>> W, eidx, iidx = construct_connectivity_filters(np.array([[0,1],[-1,0]]), params)
+
+    """
     # construct construct connectivity matrix
     W = np.zeros((W_0.shape[0], W_0.shape[1], params['ref_scale']))
     for i in range(W_0.shape[0]):
@@ -169,7 +332,8 @@ def construct_connectivity_filters(W_0, params):
                 W[i, j, :params['abs_ref_scale']] = params['abs_ref_strength']
                 abs_ref = np.arange(params['abs_ref_scale'], params['ref_scale'])
                 W[i, j, params['abs_ref_scale']:params['ref_scale']] = \
-                    params['rel_ref_strength'] * np.exp(-0.5*(abs_ref+4))
+                    params['rel_ref_strength'] * \
+                    np.exp(- 0.5 * (abs_ref + params['abs_ref_scale'] + 1))
             else:
                 W[i, j, np.arange(params['spike_scale'])] = \
                     W_0[i,j] * \
@@ -182,6 +346,26 @@ def construct_connectivity_filters(W_0, params):
 
 
 def generate_regular_stim_times(period, size):
+    """Generate regular stimulus times.
+
+    Parameters
+    ----------
+    period : float
+        Time between each stimulus onset.
+    size : int
+        Number of time steps.
+
+    Returns
+    -------
+    array
+        Stimulus times
+
+    Examples
+    --------
+    It starts after one period
+    >>> generate_regular_stim_times(2, 10)
+    array([[0., 0., 1., 0., 1., 0., 1., 0., 1., 0.]])
+    """
     binned_stim_times = np.zeros(size)
     binned_stim_times[np.arange(period, size, period)] = 1
     binned_stim_times = np.expand_dims(binned_stim_times, 0)
@@ -189,6 +373,33 @@ def generate_regular_stim_times(period, size):
 
 
 def generate_poisson_stim_times(period, low, high, size, rng=None):
+    """Generate poisson stimulus times.
+
+    Parameters
+    ----------
+    period : float
+        Mean period between stimulus onsets.
+    low : float
+        Lower cutoff.
+    high : float
+        Upper cutoff.
+    size : int
+        Number of time steps.
+    rng : generator
+        Random number generator if None default is numpy default_rng
+        (the default is None).
+
+    Returns
+    -------
+    array
+        Stimulus times.
+
+    Examples
+    --------
+    >>> rng = default_rng(1234)
+    >>> generate_poisson_stim_times(2, 2, 4, 10, rng=rng)
+    array([[0., 0., 0., 1., 0., 0., 0., 1., 0., 1.]])
+    """
     isi = []
     while sum(isi) < size:
         isi += clipped_poisson(period, 100, low, high, rng=rng).tolist()
@@ -200,6 +411,36 @@ def generate_poisson_stim_times(period, low, high, size, rng=None):
 
 
 def construct_input_filters(W, indices, scale, strength):
+    """Construct input filters.
+
+    Concatenates along the 0th dimension of the connectivity filter tensor
+
+    Parameters
+    ----------
+    W : ndarray
+        Connectivity filter tensor.
+    indices : array
+        Target indices.
+    scale : int
+        Temporal scale of input.
+    strength : scalar | dict | array like
+        Stimulus strength for each target, if scalar same value is assumed for
+        all targets.
+
+    Returns
+    -------
+    ndarray
+        Connectivity filter tensor with stimulus concatenated at the end of 0th
+        dimension.
+
+    Examples
+    --------
+    >>> W = np.ones((2,2,4))
+    >>> W_new = construct_input_filters(W, [0,1], 2, 2)
+    >>> W_new.shape
+    (3, 2, 4)
+
+    """
     W = np.concatenate((W, np.zeros((1, W.shape[1], W.shape[2]))), 0)
     if np.isscalar(strength):
         strength = {j: strength for j in indices}
@@ -209,14 +450,104 @@ def construct_input_filters(W, indices, scale, strength):
     return W
 
 
-def generate_oscillatory_drive(params):
-    t = np.arange(params['n_time_step']) * params['dt']
-    binned_stim_times = (np.sin(2*np.pi*t*params['drive_freq']) > 0).astype(int)
-    binned_stim_times = np.expand_dims(binned_stim_times, 0)
-    return binned_stim_times
-
-
 def simulate(W, W_0, params, inputs=None, pbar=None, rng=None):
+    """Simulate network activity.
+
+    Parameters
+    ----------
+    W : ndarray
+        Connectivity filter tensor.
+    W_0 : ndarray
+        Base connectivity matrix.
+    params : dict
+        Must contain the following parameters
+        `ref_scale`, `n_neurons`, `n_time_step`, `const`
+    inputs : ndarray
+        Stimulus onset times, must correspond to the order of input filters in
+        W (the default is None).
+    pbar : bool
+        Progressbar.
+    rng : generator
+        Random number generator if None default is numpy default_rng
+        (the default is None).
+
+    Returns
+    -------
+    array
+        Spike times and inputs in an event array.
+
+    Examples
+    --------
+    >>> params = {
+    ...     'const': 5.,
+    ...     'n_neurons': 3,
+    ...     'n_stim': 5,
+    ...     'dt': 1e-3,
+    ...     'ref_scale': 10,
+    ...     'abs_ref_scale': 3,
+    ...     'spike_scale': 5,
+    ...     'abs_ref_strength': -100,
+    ...     'rel_ref_strength': -30,
+    ...     'stim_scale': 2,
+    ...     'stim_strength': 10,
+    ...     'stim_period': 50,
+    ...     'stim_isi_min': 10,
+    ...     'stim_isi_max': 200,
+    ...     'drive_scale': 10,
+    ...     'drive_strength': 5,
+    ...     'drive_period': 100,
+    ...     'drive_isi_min': 30,
+    ...     'drive_isi_max': 400,
+    ...     'alpha': 0.2,
+    ...     'n_time_step': int(100),
+    ...     'seed': 12345
+    ... }
+    >>> rng = default_rng(params['seed'])
+    >>> W_0 = np.array([
+    ...     [0, 0, 0],
+    ...     [0, 0, 2.],
+    ...     [0, 0, 0]
+    ... ])
+    >>> # set stim
+    >>> binned_stim_times = generate_poisson_stim_times(
+    ...     params['stim_period'],
+    ...     params['stim_isi_min'],
+    ...     params['stim_isi_max'],
+    ...     params['n_time_step'],
+    ...     rng=rng
+    ... )
+    >>> binned_drive = generate_poisson_stim_times(
+    ...     params['drive_period'],
+    ...     params['drive_isi_min'],
+    ...     params['drive_isi_max'],
+    ...     params['n_time_step'],
+    ...     rng=rng
+    ... )
+    >>> stimulus = np.concatenate(
+    ...     (binned_stim_times, binned_drive), 0)
+    >>> W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
+    >>> W = construct_input_filters(
+    ...     W, [0, 1], params['stim_scale'], params['stim_strength'])
+    >>> W = construct_input_filters(
+    ...     W, [0, 1, 2], params['drive_scale'], params['drive_strength'])
+    >>> # Run the simulation
+    >>> simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
+    array([[ 0,  9],
+           [ 3, 44],
+           [ 0, 45],
+           [ 1, 45],
+           [ 2, 46],
+           [ 2, 56],
+           [ 1, 66],
+           [ 4, 82],
+           [ 0, 83],
+           [ 1, 84],
+           [ 2, 86],
+           [ 0, 87],
+           [ 1, 89],
+           [ 2, 90],
+           [ 0, 92]])
+    """
     rng = default_rng() if rng is None else rng
     pbar = pbar if pbar is not None else lambda x:x
     x = np.zeros((len(W), params['ref_scale']))
@@ -262,6 +593,7 @@ def simulate(W, W_0, params, inputs=None, pbar=None, rng=None):
 
 
 def simulate_torch(W, W_0, params, inputs=None, pbar=None, device='cpu', rng=None):
+    """Same as simulate just using PyTorch as the backend"""
     import torch
     rng = torch.Generator() if rng is None else rng
     pbar = pbar if pbar is not None else lambda x:x

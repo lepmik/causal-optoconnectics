@@ -103,7 +103,6 @@ if __name__ == '__main__':
         data_df.loc[i, 'cov_smin'] = s_cov.min()
         data_df.loc[i, 'cov_smax'] = s_cov.max()
 
-
         sample = reduce_sum(samples)
         sample = pd.DataFrame([
             compute_connectivity_from_sum(row)

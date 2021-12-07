@@ -1,60 +1,80 @@
 import pytest
 import numpy as np
-# from causal_optoconnectics.core import find_first_response_spike, find_response_spikes
-#
-#
-# def test_find_first_response_spike():
-#     s = np.array([1, 2, 3, 4, 5,  6]).astype(float)
-#
-#     x = np.array([0.1, 0.2, 1.2, 1.3, 2.1, 2.4, 4.4, 4.5, 5, 5.05, 6.01])
-#
-#     y = np.array([0.1, 0.2, 1.2, 1.22, 1.23, 1.3, 2.1, 2.2, 2.4, 3, 3.3, 5, 5.1, 6.3])
-#
-#     Z_true = np.array([-0.8, -0.7, -0.6, -1.6 ,0.  ,-0.95])
-#     X_true = np.array([0.2 , 0.1 , 1.4 , 0.4 , 0.05, 0.01])
-#     Y_true = np.array([0.2, 0.1, 0.3, 1. , 0.1, 0.3])
-#
-#     Z, X, Y, _ = find_first_response_spike(x, y, s)
-#
-#     assert np.allclose(Z, Z_true), (Z, Z_true)
-#     assert np.allclose(X, X_true), (X, X_true)
-#     assert np.allclose(Y, Y_true), (Y, Y_true)
-#
-#
-# def test_find_spikes():
-#     s = np.array([1, 2, 3, 4, 5])
-#     a = np.array([
-#         .1, .99, # before 1 (Z False)
-#         1.11, 1.12, # after 1
-#         2, # before 2 (Z True)
-#         2.13, # after 2
-#         3.14, 3.15, # after 3
-#         3.999, # before 4 (Z True)
-#         4.16, # after 4
-#         5.17# before 1
-#     ])
-#     c = np.array([
-#         .2,
-#         1.13, 1.23,
-#         2.34,
-#         3.2,
-#         4.1,
-#         5.5])
-#     Z, X, Y = find_response_spikes(a, c, s, dt=.3, dz=0.01)
-#     X_true = [
-#         np.array([0.11, 0.12]),
-#         np.array([0.13]),
-#         np.array([0.14, 0.15]),
-#         np.array([0.16]),
-#         np.array([0.17])
-#     ]
-#     Y_true = [
-#         np.array([0.13, 0.23]),
-#         np.array([]),
-#         np.array([0.2]),
-#         np.array([0.1]),
-#         np.array([])
-#     ]
-#     assert np.array_equal(Z, np.array([False,  True, False,  True, False]))
-#     assert all([np.allclose(X[i], X_true[i]) for i in range(len(X))])
-#     assert all([np.allclose(Y[i], Y_true[i]) for i in range(len(Y))])
+from causal_optoconnectics.core import Connectivity
+from causal_optoconnectics.tools import compute_trials
+
+
+def test_connectivity():
+    stimulus = np.arange(10, 510, 10).repeat(2).reshape((50, 2)).astype(float)
+    stimulus[:,0] = 3 # event id
+    A = stimulus + 1
+    A[:,0] = 0 # event id
+    B = stimulus + 1
+    B[:,0] = 1 # event id
+    C = stimulus + 3
+    C[:,0] = 2 # event id
+    # Neuron A only responds 50% of the time because it spikes before
+    # stimulus
+    A[1::2, 1] -= 1
+    # Neuron B only responds 80% of the time, but C follows
+    B[::5, 1] -= 1
+    C[::5, 1] -= 1
+    # Confounding factor shuts of A, B and C together, this makes the
+    # OLS estimator fail
+    A[::6] = np.nan
+    B[::6] = np.nan
+    C[::6] = np.nan
+    # Estimate hit rate
+    idxs = np.arange(50)
+    hit_rate_A = 1 - len(np.unique(np.concatenate((idxs[1::2], idxs[::6])))) / 50
+    hit_rate_B = 1 - len(np.unique(np.concatenate((idxs[::6], idxs[::5])))) / 50
+    # Now we combine the activity together in a event array
+    events = np.concatenate([stimulus, A, B, C], 0)
+    # Remove nans
+    events = events[np.isfinite(events[:,1])]
+    sort_idxs = np.argsort(events[:,1], 0)
+    events = events[sort_idxs, :].astype(int)
+    trials = compute_trials(events, neurons=3, stim_index=3, n1=-2, n2=4)
+    assert trials[0].shape == (50, 6)
+    # Compute connectivity
+    # parameters are indices relative to the range n2 - n1,
+    # i.e. 6 is the last index in the trial bins
+    params = dict(x1=3, x2=4, y1=5, y2=6, z1=1, z2=3)
+    AC = Connectivity(pre=trials[0], post=trials[2], params=params)
+    BC = Connectivity(pre=trials[1], post=trials[2], params=params)
+        # First we look at the raw values
+    AC.compute(rectify=False)
+    BC.compute(rectify=False)
+    assert round(AC.beta_iv, 3) == -0.438
+    assert round(AC.beta_brew, 3) == 0.012
+    assert round(AC.beta_ols, 3) == 0.224
+    assert round(AC.beta_iv_did, 3) == -0.122
+    assert round(AC.beta_brew_did, 3) == 0.025
+    assert round(AC.beta_ols_did, 3) == 0.184
+    assert round(AC.hit_rate, 2) == round(hit_rate_A, 2)
+
+    assert round(BC.beta_iv, 2) == 1.00
+    assert round(BC.beta_brew, 2) == 1.00
+    assert round(BC.beta_ols, 2) == 1.00
+    assert round(BC.beta_iv_did, 2) == 1.00
+    assert round(BC.beta_brew_did, 2) == 2.00
+    assert round(BC.beta_ols_did, 2) == 1.47
+    assert round(BC.hit_rate, 2) == round(hit_rate_B, 2)
+
+    AC.compute(rectify=True)
+    BC.compute(rectify=True)
+    assert round(AC.beta_iv, 3) == 0.000
+    assert round(AC.beta_brew, 3) == 0.012
+    assert round(AC.beta_ols, 3) == 0.224
+    assert round(AC.beta_iv_did, 3) == 0.000
+    assert round(AC.beta_brew_did, 3) == 0.025
+    assert round(AC.beta_ols_did, 3) == 0.184
+    assert round(AC.hit_rate, 2) == round(hit_rate_A, 2)
+
+    assert round(BC.beta_iv, 2) == 1.00
+    assert round(BC.beta_brew, 2) == 1.00
+    assert round(BC.beta_ols, 2) == 1.00
+    assert round(BC.beta_iv_did, 2) == 1.00
+    assert round(BC.beta_brew_did, 2) == 2.00
+    assert round(BC.beta_ols_did, 2) == 1.47
+    assert round(BC.hit_rate, 2) == round(hit_rate_B, 2)

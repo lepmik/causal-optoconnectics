@@ -1,3 +1,7 @@
+"""
+This module contain all correlation based code
+
+"""
 import numpy as np
 from .tools import histogram
 
@@ -10,6 +14,7 @@ def correlogram(t1, t2=None, bin_size=.001, limit=.02, auto=False,
     several tweaks were made for efficiency.
     Originally authored by Chris Rodger, copied from OpenElectrophy, licenced
     with CeCill-B.
+
     Parameters
     ---------
     t1 : np.array
@@ -25,18 +30,22 @@ def correlogram(t1, t2=None, bin_size=.001, limit=.02, auto=False,
         this case `t2` can be None. Default is False.
     density : bool
         If True, then returns the probability density function.
+
     See also
     --------
     :func:`numpy.histogram` : The histogram function in use.
+
     Returns
     -------
     (count, bins) : tuple
         A tuple containing the bin right edges and the
         count/density of spikes in each bin.
+
     Note
     ----
     `bins` are relative to `t1`. That is, if `t1` leads `t2`, then
     `count` will peak in a positive time bin.
+    
     Examples
     --------
     >>> t1 = np.arange(0, .5, .1)
