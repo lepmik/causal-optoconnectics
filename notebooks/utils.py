@@ -266,7 +266,7 @@ def plot_error_trials(error_trials, key, alpha=0.5):
         plt.legend(
             handles=[Line2D([],[],c=c) for c in ['C0', 'C1', 'C2', 'C3', 'C4', 'C5']],
             labels=[r'$\hat{\beta}_{OLS,DiD}$', r'$\hat{\beta}_{IV,DiD}$', r'$\hat{\beta}_{BR,DiD}$',
-                    r'$\hat{\beta_{OLS}}$',r'$\hat{\beta}_{IV}$', r'$\hat{\beta}_{BR}$'],
+                    r'$\hat{\beta}_{OLS}$',r'$\hat{\beta}_{IV}$', r'$\hat{\beta}_{BR}$'],
             frameon=False)
         ax.set_xscale('log')
         sns.despine()
