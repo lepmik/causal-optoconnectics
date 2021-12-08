@@ -216,7 +216,7 @@ class Connectivity:
             self.x0z_sum = (x0*z).sum()
             self.x0zinv_sum = (x0*(1-z)).sum()
 
-    def compute(self, rectify=True):
+    def compute(self, rectify=False):
         """Computes connectivity estimates.
 
         Returns
