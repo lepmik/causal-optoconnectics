@@ -66,7 +66,8 @@ def save(fname, value, file_exists):
                 split[-1] = str(int(split[-1]) + 1)
                 new_name = '_'.join(split)
             fname = fname.with_name(new_name).with_suffix(fname.suffix)
-            assert not fname.exists()
+            if fname.exists():
+                save(fname, value, file_exists)
         elif file_exists == 'overwrite':
             pass
         else:
