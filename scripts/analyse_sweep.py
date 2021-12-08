@@ -29,7 +29,6 @@ def load(fn):
     W_0 = data['W_0']
     W = data['W']
     params = data['params']
-    params.update(rparams)
     return X, W_0, W, params
 
 
@@ -112,6 +111,7 @@ def main(data_path, file_exists, x, y, z):
                 row.path.glob('rank_*.npz'))
 
         X, W_0, W, params = load(row.path / 'rank_0.npz')
+        params.update(rparams)
         save(row.path / 'params.yaml', params, file_exists)
 
         n_neurons = params['n_neurons']
