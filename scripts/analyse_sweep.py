@@ -32,8 +32,9 @@ def load(fn):
     return X, W_0, W, params
 
 
-def compute(fn, file_exists):
+def compute(fn, file_exists, rparams):
     X, W_0, W, params = load(fn)
+    params.update(rparams)
     params.pop('seed')
     stim_index = len(W_0)
     results_meta = pd.DataFrame(process_metadata(
@@ -107,7 +108,7 @@ def main(data_path, file_exists, x, y, z):
         iterator.set_description(row.path.stem)
         with multiprocessing.Pool() as p:
             samples = p.map(
-                partial(compute, file_exists=file_exists),
+                partial(compute, file_exists=file_exists, rparams=rparams),
                 row.path.glob('rank_*.npz'))
 
         X, W_0, W, params = load(row.path / 'rank_0.npz')
