@@ -19,6 +19,9 @@ from causal_optoconnectics.tools import (
 )
 from causal_optoconnectics.core import Connectivity
 
+def savefig(stem):
+    fname = pathlib.Path(f'../paper/graphics/{stem}').with_suffix('.svg')
+    plt.savefig(fname, bbox_inches='tight', transparent=True)
 
 err_fnc = {
     'positives': lambda x, y: min_error(x, y).fun,

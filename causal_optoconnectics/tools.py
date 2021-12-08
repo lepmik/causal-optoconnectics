@@ -8,75 +8,6 @@ from scipy.optimize import minimize_scalar
 from .core import Connectivity
 
 
-def poisson_continuity_correction(n, observed):
-    """Correct for continuity.
-
-    Parameters
-    ----------
-    n : array
-        Likelihood to observe n or more events
-    observed : array
-        Rate of Poisson process
-
-    Returns
-    -------
-    array
-        Corrected array.
-
-    References
-    ----------
-    Stark, E., & Abeles, M. (2009). Unbiased estimation of precise temporal
-    correlations between spike trains. Journal of neuroscience methods, 179(1),
-    90-100.
-
-    Authors
-    -------
-    Tristan Stoeber, Mikkel Lepperød
-    """
-    if n.ndim == 0:
-        n = np.array([n])
-    assert n.ndim == 1
-    from scipy.stats import poisson
-    assert np.all(n >= 0)
-    result = np.zeros(n.shape)
-    if n.shape != observed.shape:
-        observed = np.repeat(observed, n.size)
-    for i, (n_i, rate) in enumerate(zip(n, observed)):
-        if n_i == 0:
-            result[i] = 1.
-        else:
-            rates = [poisson.pmf(j, rate) for j in range(n_i)]
-            result[i] = 1 - np.sum(rates) - 0.5 * poisson.pmf(n_i, rate)
-    return result
-
-
-def hollow_kernel(kernlen, width, hollow_fraction=0.6):
-    '''Returns a hollow kernel normalized to it's sum
-
-    Parameters
-    ----------
-    kernlen : int
-        Length of kernel, must be uneven (kernlen % 2 == 1)
-    width : float
-        Width of kernel (std if gaussian)
-    hollow_fraction : float
-        Fractoin of the central bin to removed.
-
-    Returns
-    -------
-    kernel : array
-
-    Authors
-    -------
-    Tristan Stoeber, Mikkel Lepperød
-    '''
-    from scipy.signal import gaussian
-    assert kernlen % 2 == 1
-    kernel = gaussian(kernlen, width)
-    kernel[int(kernlen / 2.)] *= (1 - hollow_fraction)
-    return kernel / sum(kernel)
-
-
 def histogram(val, bins, density=False):
     """Fast histogram
 
@@ -345,7 +276,7 @@ def process_metadata(sources, targets, W, stim_index, ignore_self_connection=Tru
     return pairs
 
 
-def process(source, target, W, stim_index, params=None, trials=None, n_trials=None, meta_only=False, compute_values=True):
+def process(source, target, W, stim_index, params=None, trials=None, n_trials=None, meta_only=False, compute_values=True, rectify=False):
     if trials is not None:
         pre, post = trials[source], trials[target]
         n_trials = len(pre) if n_trials is None else n_trials
@@ -371,7 +302,7 @@ def process(source, target, W, stim_index, params=None, trials=None, n_trials=No
         params
     )
     if compute_values:
-        conn.compute()
+        conn.compute(rectify=rectify)
     result.update(conn.__dict__)
     result.update(params)
     return result

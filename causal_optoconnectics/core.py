@@ -266,9 +266,11 @@ class Connectivity:
             (x_response_norefractory - x0_response_norefractory) + x0_refractory) # - (x_refractory - x0_refractory)
         # DiD brew
         self.beta_brew_did = self.beta_brew - (y0_response - y0_refractory)
-        # OLS
+        # OLS DiD: y_response_spike - y0_response - (y_nospike - y0_nospike)
+        # y_response_spike - y0_response - y_nospike + y0_nospike
+        # y_response_spike - y_nospike - (y0_response - y0_nospike)
         self.beta_ols_did = self.beta_ols - (y0_response - y0_nospike)
-
+        #
         if rectify:
             self.beta_iv = relu(self.beta_iv)
             self.beta_ols = relu(self.beta_ols)
