@@ -22,6 +22,12 @@ from causal_optoconnectics.core import Connectivity
 def savefig(stem):
     fname = pathlib.Path(f'../paper/graphics/{stem}').with_suffix('.svg')
     plt.savefig(fname, bbox_inches='tight', transparent=True)
+    
+    
+def read_csvs(data_path, version=None):
+    version = '_' if version is None else version
+    return [pd.read_csv(p) for p in data_path.glob(f'rank_*.csv') if len(p.stem.split(version)) == 2]
+
 
 err_fnc = {
     'positives': lambda x, y: min_error(x, y).fun,
@@ -48,7 +54,7 @@ def bootstrap_pvalue(case, control, obs_diff, statistic=np.mean, alpha_ci=0.05):
     return pval, low, high, diffs, obs_diff
 
 
-def compute_error_trials(data_path, n_iter=100, n_samples=150):
+def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     data_dict = {
         'positives': {i: defaultdict(list) for i in range(len(paths))},
@@ -57,7 +63,7 @@ def compute_error_trials(data_path, n_iter=100, n_samples=150):
     rng = default_rng()
     pbar = tqdm(total=len(paths)*n_iter)
     for i, path in enumerate(paths):
-        samples = [pd.read_csv(p) for p in path.glob('rank*.csv')]
+        samples = read_csvs(path, version=version)
         for ii in range(n_iter):
             idxs = rng.choice(len(samples), size=n_samples, replace=False)
             sample = reduce_sum([samples[j] for j in idxs])
@@ -82,14 +88,14 @@ def compute_error_trials(data_path, n_iter=100, n_samples=150):
     return data_dict
 
 
-def compute_errors(data_path):
+def compute_errors(data_path, version=None):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     errors = {
         'positives': pd.DataFrame({'path': paths}),
         'negatives': pd.DataFrame({'path': paths})
     }
     for i, path in tqdm(enumerate(paths), total=len(paths)):
-        samples = [pd.read_csv(p) for p in path.glob('rank*.csv')]
+        samples = read_csvs(path, version=version)
         sample = reduce_sum(samples)
         sample = pd.DataFrame([
             compute_connectivity_from_sum(row)
@@ -140,7 +146,7 @@ def compute_error_confidence(errors, error_trials):
     return errors
 
 
-def compute_error_convergence(data_path):
+def compute_error_convergence(data_path, version=None):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     n_samples = len(list(paths[0].glob('rank*.csv')))
     convergence = {
@@ -149,7 +155,7 @@ def compute_error_convergence(data_path):
     }
     pbar = tqdm(total=len(paths)*n_samples)
     for i, path in enumerate(paths):
-        samples = [pd.read_csv(p) for p in path.glob('rank*.csv')]
+        samples = read_csvs(path, version=version)
         for ll in range(n_samples):
             sample = reduce_sum(samples[:ll+1])
             sample = pd.DataFrame([
@@ -169,7 +175,7 @@ def compute_error_convergence(data_path):
     return convergence
 
 
-def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10):
+def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10, version=None):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     convergence = {
         'positives': {i: defaultdict(partial(np.empty, (n_iter, n_samples))) for i in range(len(paths))},
@@ -178,7 +184,7 @@ def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10):
     rng = default_rng()
     pbar = tqdm(total=len(paths)*n_iter*n_samples)
     for i, path in enumerate(paths):
-        samples = [pd.read_csv(p) for p in path.glob('rank*.csv')]
+        samples = read_csvs(path, version=version)
         for ii in range(n_iter):
             idxs = rng.choice(len(samples), size=n_samples, replace=False)
             for ll in range(len(idxs)):
@@ -200,11 +206,11 @@ def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10):
     return convergence
 
 
-def compute_all_samples(data_path):
+def compute_all_samples(data_path, version=None):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     grand_samples = {}
     for i, path in tqdm(enumerate(paths), total=len(paths)):
-        samples = [pd.read_csv(p) for p in path.glob('rank*.csv')]
+        samples = read_csvs(path, version=version)
         sample = reduce_sum(samples)
         grand_samples[i] = pd.DataFrame([
             compute_connectivity_from_sum(row)
