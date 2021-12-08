@@ -73,12 +73,14 @@ def save(fname, value, file_exists):
             raise ValueError(f'Unknown parameter file_exists={file_exists}')
     if fname.suffix == '.csv':
         value.to_csv(fname)
-    if fname.suffux == '.npz':
+    elif fname.suffix == '.npz':
         np.savez(fname, value)
-    if fname.suffix == '.yaml':
+    elif fname.suffix == '.yaml':
         yaml = ruamel.yaml.YAML()
         with open(fname, 'w') as f:
             yaml.dump(value, f)
+    else:
+        raise NotImplementedError(f"Don't know what to do with {fname.suffix}")
 
 
 @click.command()
