@@ -7,6 +7,7 @@ from scipy.linalg import svd
 from functools import partial
 import ruamel.yaml
 import multiprocessing
+import click
 from causal_optoconnectics.core import Connectivity
 from causal_optoconnectics.tools import (
     compute_trials,
@@ -41,7 +42,7 @@ def load(fn):
     return X, W_0, W, params
 
 
-def compute(fn):
+def compute(fn, file_exists):
     X, W_0, W, params = load(fn)
     params.pop('seed')
     stim_index = len(W_0)
@@ -55,17 +56,50 @@ def compute(fn):
         source=source, target=target, W=W, stim_index=stim_index,
         trials=trials, params=params, compute_values=False)
         for source, target in sample_meta.pair.values])
-    sums.to_csv(fn.with_suffix('.csv'))
+    save(fn.with_suffix('.csv'), sums, file_exists)
 
     return sums
 
 
-if __name__ == '__main__':
-    import sys
+def save(fname, value, file_exists):
+    if fname.exists():
+        if file_exists == 'stop':
+            raise OSError(f'File exists, file_exists={file_exists}')
+        elif file_exists == 'skip':
+            return
+        elif file_exists == 'new':
+            split = fname.stem.split('_')
+            if 'version' not in split:
+                new_name = fname.stem + '_version_0'
+            else:
+                split[-1] = str(int(split[-1]) + 1)
+                new_name = '_'.join(split)
+            fname = fname.with_name(new_name).with_suffix(fname.suffix)
+            assert not fname.exists()
+        elif file_exists == 'overwrite':
+            pass
+        else:
+            raise ValueError(f'Unknown parameter file_exists={file_exists}')
+    if fname.suffix == '.csv':
+        value.to_csv(fname)
+    if fname.suffux == '.npz':
+        np.savez(fname, value)
+    if fname.suffix == '.yaml':
+        yaml = ruamel.yaml.YAML()
+        with open(fname, 'w') as f:
+            yaml.dump(value, f)
+
+
+@click.command()
+@click.argument('data_path', type=click.Path(exists=True))
+@click.option('--file-exists', '-f',
+              type=click.Choice(['overwrite', 'skip', 'new', 'stop'],
+              case_sensitive=False), default='stop')
+def main(data_path, file_exists):
+    data_path = pathlib.Path(data_path).absolute().resolve()
     from functools import reduce
-    yaml = ruamel.yaml.YAML()
-    data_path = pathlib.Path(sys.argv[1]).absolute().resolve()
     print(f'Analyzing {data_path}')
+
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     data_df = pd.DataFrame({'path': paths})
 
@@ -74,11 +108,13 @@ if __name__ == '__main__':
     for i, row in iterator:
         iterator.set_description(row.path.stem)
         with multiprocessing.Pool() as p:
-            samples = p.map(compute, row.path.glob('rank_*.npz'))
+            samples = p.map(
+                partial(compute, file_exists=file_exists),
+                row.path.glob('rank_*.npz'))
 
         X, W_0, W, params = load(row.path / 'rank_0.npz')
-        with open(row.path / 'params.yaml', 'w') as f:
-            yaml.dump(params, f)
+        save(row.path / 'params.yaml', params, file_exists)
+
         n_neurons = params['n_neurons']
 
         data_df.loc[i, params.keys()] = params.values()
@@ -107,7 +143,7 @@ if __name__ == '__main__':
         sample = pd.DataFrame([
             compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])
-        sample.to_csv(row.path / 'sample.csv')
+        save(row.path / 'sample.csv', sample, file_exists)
         data_df.loc[i, 'error_beta_ols_did'] = min_error(sample, 'beta_ols_did').fun
         data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did').fun
         data_df.loc[i, 'error_beta_brew_did'] = min_error(sample, 'beta_brew_did').fun
@@ -121,4 +157,7 @@ if __name__ == '__main__':
     data_df.loc[:,'error_diff_ols_iv_did'] = data_df.error_beta_ols_did - data_df.error_beta_iv_did
     data_df.loc[:,'error_diff_ols_brew_did'] = data_df.error_beta_ols_did - data_df.error_beta_brew_did
     data_df.loc[:,'error_diff_brew_iv_did'] = data_df.error_beta_brew_did - data_df.error_beta_iv_did
-    data_df.to_csv(data_path / 'summary.csv')
+    save(data_path / 'summary.csv', data_df, file_exists)
+
+if __name__ == '__main__':
+    main()
