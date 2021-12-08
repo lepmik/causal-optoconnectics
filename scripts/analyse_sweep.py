@@ -21,15 +21,6 @@ from causal_optoconnectics.tools import (
     compute_connectivity_from_sum
 )
 
-rparams = {
-    'x1': 11,
-    'x2': 13,
-    'y1': 12,
-    'y2': 14,
-    'z1': 9,
-    'z2': 11,
-}
-
 
 def load(fn):
     data = np.load(fn, allow_pickle=True)
@@ -95,7 +86,15 @@ def save(fname, value, file_exists):
 @click.option('--file-exists', '-f',
               type=click.Choice(['overwrite', 'skip', 'new', 'stop'],
               case_sensitive=False), default='stop')
-def main(data_path, file_exists):
+@click.option('-x', type=(int, int), default=(11, 13))
+@click.option('-y', type=(int, int), default=(12, 14))
+@click.option('-z', type=(int, int), default=(9, 11))
+def main(data_path, file_exists, x, y, z):
+    rparams = {
+        'x1': x[0], 'x2': x[1],
+        'y1': y[0], 'y2': y[1],
+        'z1': z[0], 'z2': z[1],
+    }
     data_path = pathlib.Path(data_path).absolute().resolve()
     from functools import reduce
     print(f'Analyzing {data_path}')
