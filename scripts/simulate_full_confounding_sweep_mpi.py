@@ -11,7 +11,6 @@ from causal_optoconnectics.generator import (
     construct_input_filters,
     generate_poisson_stim_times,
     generate_regular_stim_times,
-    generate_oscillatory_drive,
     dales_law_transform,
 )
 

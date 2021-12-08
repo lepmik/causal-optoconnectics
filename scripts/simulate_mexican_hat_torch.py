@@ -17,8 +17,6 @@ from causal_optoconnectics.generator import (
     simulate_torch,
     construct_input_filters,
     generate_poisson_stim_times,
-    generate_regular_stim_times,
-    generate_oscillatory_drive,
     dales_law_transform,
     construct_mexican_hat_connectivity,
     simulate_torch
