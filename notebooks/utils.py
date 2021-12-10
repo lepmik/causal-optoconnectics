@@ -96,6 +96,8 @@ def compute_errors(data_path, version=None):
     }
     for i, path in tqdm(enumerate(paths), total=len(paths)):
         samples = read_csvs(path, version=version)
+        if len(samples) == 0:
+            continue
         sample = reduce_sum(samples)
         sample = pd.DataFrame([
             compute_connectivity_from_sum(row)
@@ -156,6 +158,8 @@ def compute_error_convergence(data_path, version=None):
     pbar = tqdm(total=len(paths)*n_samples)
     for i, path in enumerate(paths):
         samples = read_csvs(path, version=version)
+        if len(samples) == 0:
+            continue
         for ll in range(n_samples):
             sample = reduce_sum(samples[:ll+1])
             sample = pd.DataFrame([
@@ -211,6 +215,8 @@ def compute_all_samples(data_path, version=None):
     grand_samples = {}
     for i, path in tqdm(enumerate(paths), total=len(paths)):
         samples = read_csvs(path, version=version)
+        if len(samples) == 0:
+            continue
         sample = reduce_sum(samples)
         grand_samples[i] = pd.DataFrame([
             compute_connectivity_from_sum(row)
