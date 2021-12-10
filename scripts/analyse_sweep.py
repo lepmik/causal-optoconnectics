@@ -33,6 +33,8 @@ def load(fn):
 
 
 def compute(fn, file_exists, rparams):
+    if fn.exists() and file_exists == 'skip':
+        return pd.read_csv(fn.with_suffix('.csv'))
     X, W_0, W, params = load(fn)
     params.update(rparams)
     params.pop('seed')
