@@ -399,44 +399,26 @@ def plot_error_convergence(convergence, index):
         plt.title(k)
 
 
-def plot_error_convergence_trials(convergence, convergence_trials, index, alpha=0.5):
-    from matplotlib.lines import Line2D
-    for k, df in convergence_trials.items():
-        fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
+def plot_error_convergence_trials(convergence_trials, index, keys, alpha=0.2, axs=None, legend=True, xlabels=[True, True], ylabels=[True, True]):
+    if axs is None:
+        fig, axs = plt.subplots(2,1, figsize=(5,5), dpi=150, sharex=True)
+    label = lambda x: ','.join([labels[l] for l in x.split('_')[2:]])
+    for i, (k, df) in enumerate(convergence_trials.items()):
+        ax = axs[i]
         steps_t = df[index]['n_trials']
         errors_t = df[index]
-        
-        steps = convergence[k][index]['n_trials']
-        errors = convergence[k][index]
-
-        ax.plot(steps_t.T, errors_t['error_beta_ols_did'].T, color='C0', alpha=alpha)
-        ax.plot(steps, errors['error_beta_ols_did'], color='C0')
-
-        ax.plot(steps_t.T, errors_t['error_beta_iv_did'].T, color='C1', alpha=alpha)
-        ax.plot(steps, errors['error_beta_iv_did'], color='C1')
-
-        ax.plot(steps_t.T, errors_t['error_beta_brew_did'].T, color='C2', alpha=alpha)
-        ax.plot(steps, errors['error_beta_brew_did'], color='C2')
-
-        ax.plot(steps_t.T, errors_t['error_beta_ols'].T, color='C3', alpha=alpha)
-        ax.plot(steps, errors['error_beta_ols'], color='C3')
-
-        ax.plot(steps_t.T, errors_t['error_beta_iv'].T, color='C4', alpha=alpha)
-        ax.plot(steps, errors['error_beta_iv'], color='C4')
-
-        ax.plot(steps_t.T, errors_t['error_beta_brew'].T, color='C5', alpha=alpha)
-        ax.plot(steps, errors['error_beta_brew'], color='C5')
-
-        plt.legend(
-            handles=[Line2D([],[],c=c) for c in ['C0', 'C1', 'C2', 'C3', 'C4', 'C5']],
-            labels=[r'$\hat{\beta}_{OLS,DiD}$', r'$\hat{\beta}_{IV,DiD}$', r'$\hat{\beta}_{BR,DiD}$',
-                    r'$\hat{\beta}_{OLS}$',r'$\hat{\beta}_{IV}$', r'$\hat{\beta}_{BR}$'],
-            frameon=False)
+        for key in keys:            
+            color = colors[label(key).lower()]
+            ax.plot(steps_t.T, errors_t[key].T, color=color, alpha=alpha)
+            ax.plot(steps_t[0], errors_t[key].mean(0), color=color, label=fr'$\beta_{{{label(key)}}}$')
+            if legend:
+                ax.legend(frameon=False)
         ax.set_xscale('log')
         sns.despine()
-        ax.set_xlabel('Trials')
-        ax.set_ylabel(r'$\mathrm{error}(\beta)$')
-        plt.title(k)
+        if xlabels[i]:
+            ax.set_xlabel('Trials')
+        if ylabels[i]:
+            ax.set_ylabel(r'$Error(w > 0)$' if k=='positives' else fr'$Error(w = 0)$')
 
 
 def plot_regression(samples, index, keys=['beta_ols_did','beta_iv_did','beta_brew_did']):
