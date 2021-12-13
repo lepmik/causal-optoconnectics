@@ -400,17 +400,19 @@ def plot_error_convergence(convergence, index):
 
 
 def plot_error_convergence_trials(convergence_trials, index, keys, alpha=0.2, axs=None, legend=True, xlabels=[True, True], ylabels=[True, True]):
+    import copy
     if axs is None:
         fig, axs = plt.subplots(2,1, figsize=(5,5), dpi=150, sharex=True)
     label = lambda x: ','.join([labels[l] for l in x.split('_')[2:]])
     for i, (k, df) in enumerate(convergence_trials.items()):
         ax = axs[i]
         steps_t = df[index]['n_trials']
-        errors_t = df[index]
-        for key in keys:            
+        errors_t = copy.deepcopy(df[index])
+        for key in keys:
+            errors_t[key][errors_t[key]==0] = np.nan
             color = colors[label(key).lower()]
             ax.plot(steps_t.T, errors_t[key].T, color=color, alpha=alpha)
-            ax.plot(steps_t[0], errors_t[key].mean(0), color=color, label=fr'$\beta_{{{label(key)}}}$')
+            ax.plot(steps_t[0], np.nanmean(errors_t[key], axis=0), color=color, label=fr'$\beta_{{{label(key)}}}$')
             if legend:
                 ax.legend(frameon=False)
         ax.set_xscale('log')
@@ -421,16 +423,16 @@ def plot_error_convergence_trials(convergence_trials, index, keys, alpha=0.2, ax
             ax.set_ylabel(r'$Error(w > 0)$' if k=='positives' else fr'$Error(w = 0)$')
 
 
-def plot_regression(samples, index, keys=['beta_ols_did','beta_iv_did','beta_brew_did']):
+def plot_regression(samples, index, keys=['beta_ols_did','beta_iv_did','beta_brew_did'], legend=True):
     df = samples[index].query('weight>0')
-    fig, axs = plt.subplots(1,3,figsize=(12,4), dpi=150, sharey=True)
+    fig, axs = plt.subplots(1,len(keys),figsize=(4,2.5), dpi=150, sharey=True)
     for i, (ax, key) in enumerate(zip(axs, keys)):
         model = regplot(
             'weight', key, data=df,
-            scatter_color=df['hit_rate'], colorbar=True, ax=ax)
-
-        h = plt.Line2D([], [], label='$R^2 = {:.3f}$'.format(model.rsquared), ls='-', color='k')
-        ax.legend(handles=[h])
+            scatter_color=df['hit_rate'], colorbar=i==len(keys)-1, ax=ax)
+        if legend:
+            h = plt.Line2D([], [], label='$R^2 = {:.3f}$'.format(model.rsquared), ls='-', color='k')
+            ax.legend(handles=[h], frameon=False)
         if i == 0:
             ax.set_ylabel(r'$\hat{\beta}$')
         else:
@@ -442,11 +444,10 @@ def plot_regression(samples, index, keys=['beta_ols_did','beta_iv_did','beta_bre
 
 def plot_false_positives(samples, index, keys=['beta_ols_did', 'beta_iv_did', 'beta_brew_did']):
     df_zero = samples[index].query('weight==0')
-    fig, ax = plt.subplots(1, 1, figsize=(6,5), dpi=150)
+    fig, ax = plt.subplots(1, 1, figsize=(4,2.5), dpi=150)
     pos = np.random.uniform(.25,.75, size=len(df_zero))
-    ax.scatter(pos + .5, df_zero[keys[0]], c=df_zero.hit_rate, s=5)
-    sc = ax.scatter(pos + 1.5, df_zero[keys[1]], c=df_zero.hit_rate, s=5)
-    ax.scatter(pos + 2.5, df_zero[keys[2]], c=df_zero.hit_rate, s=5)
+    for i, key in enumerate(keys):
+        sc = ax.scatter(pos + .5 + i, df_zero[key], c=df_zero.hit_rate, s=5)
 
     cb = plt.colorbar(mappable=sc, ax=ax)
     cb.ax.yaxis.set_ticks_position('right')
@@ -456,4 +457,4 @@ def plot_false_positives(samples, index, keys=['beta_ols_did', 'beta_iv_did', 'b
         pc.set_facecolor('gray')
         pc.set_edgecolor('k')
         pc.set_alpha(0.6)
-    plt.xticks([1, 2, 3], [fr'$\{key.split("_")[0]}_{{{",".join(key.split("_")[1:])}}}$' for key in keys])
+    plt.xticks(np.arange(len(keys))+1, [fr'$\{key.split("_")[0]}_{{{",".join(key.split("_")[1:])}}}$' for key in keys])
