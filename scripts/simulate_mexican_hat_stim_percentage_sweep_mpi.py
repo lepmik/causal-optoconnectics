@@ -73,7 +73,7 @@ if __name__ == '__main__':
 
     for stim_percentage in stim_percentages:
         params['n_stim'] = int(params['n_neurons'] * stim_percentage)
-        path =  data_path / f'mex_hat_ns{params['n_stim']:.2f}'.replace('.','')
+        path =  data_path / f'mex_hat_ns{params["n_stim"]:.2f}'.replace('.','')
         path.mkdir(exist_ok=True)
         fname = path / f'rank_{rank}.npz'
 

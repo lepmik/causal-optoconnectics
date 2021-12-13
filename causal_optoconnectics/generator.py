@@ -214,7 +214,7 @@ def construct_mexican_hat_connectivity(params):
     W = np.zeros((params['n_neurons'],params['n_neurons']))
     j = np.arange(params['n_neurons'])
     for i in range(params['n_neurons']):
-        W[i,j] = mexican_hat(
+        W[i,j] = _mexican_hat(
             i, j, *map(params.get,
                 ['mex_a', 'mex_sigma_1', 'mex_sigma_2', 'n_neurons']))
     np.fill_diagonal(W, 0)

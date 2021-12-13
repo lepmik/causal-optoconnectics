@@ -19,6 +19,64 @@ from causal_optoconnectics.tools import (
 )
 from causal_optoconnectics.core import Connectivity
 
+colors = {
+    'iv,did': '#e41a1c',
+    'iv': '#e41a1c',
+    'ols,did': '#377eb8',
+    'ols': '#377eb8'
+}
+
+labels = {'did': 'DiD', 'ols': 'OLS', 'iv':'IV'}
+
+
+
+# def violinplot(df, labels, colors, statistics=None):
+#     data = np.array([df.loc[:,label].dropna().to_numpy() for label in labels])
+#     pos = np.array([i * 0.6 for i in range(len(data))])
+#     labels = np.array(labels)
+# #     print(pos)
+#     violins = plt.violinplot(data, pos, showmedians=True, showextrema=False)
+    
+#     for i, b in enumerate(violins['bodies']):
+#         b.set_color(colors[i])
+#         b.set_alpha (0.8)
+
+
+#     for category in ['cbars', 'cmins', 'cmaxes', 'cmedians']:
+#         if category in violins:
+#             violins[category].set_color(['k', 'k'])
+#             violins[category].set_linewidth(2.0)
+#     plt.xticks(pos, labels, rotation=45)
+#     plt.gca().spines['top'].set_visible(False)
+#     plt.gca().spines['right'].set_visible(False)
+
+           
+#     if statistics is not None:
+#         tests = [[0,1], [2,3], [0,2]]
+#         ds = [0,0,1]
+#         for test, d in zip(tests, ds):
+#             pvalue = statistics.loc[' - '.join(labels[test])]
+#             # significance
+#             if pvalue < 0.0001:
+#                 significance = "****"
+#             elif pvalue < 0.001:
+#                 significance = "***"
+#             elif pvalue < 0.01:
+#                 significance = "**"
+#             elif pvalue < 0.05:
+#                 significance = "*"
+#             else:
+#                 significance = "ns"
+
+#             x1, x2 = pos[test]
+#             data_max = np.max([a.max() for a in data[test]])
+#             data_min = np.min([a.min() for a in data[test]])
+#             y = (data_max * 1.05)
+#             h = 0.025 * (data_max - data_min)
+#             d_ =  d * 0.15 * (data_max - data_min)
+#             plt.plot([x1, x1, x2, x2], np.array([y - h, y, y, y - h]) + d_, c='k')
+#             plt.text((x1 + x2) / 2, y + h + d_, significance, ha='center', va='bottom')
+
 def savefig(stem):
     fname = pathlib.Path(f'../paper/graphics/{stem}').with_suffix('.svg')
     plt.savefig(fname, bbox_inches='tight', transparent=True)
