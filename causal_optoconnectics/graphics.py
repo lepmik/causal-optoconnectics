@@ -100,7 +100,7 @@ def probplot(prob, sigma=1, xmin=-10, xmax=10, ymin=-10, ymax=10, ax=None, color
 
 def regplot(x, y, data, model=None, ci=95., scatter_color=None, model_color='k', ax=None,
             scatter_kws={}, regplot_kws={}, cmap=None, cax=None, clabel=None,
-            xlabel=True, ylabel=True, colorbar=False, **kwargs):
+            xlabel=True, ylabel=True, colorbar=False, model_kws={}):
     """Plot data and a linear regression model fit.
 
     This function is adapted from seaborn.regplot, basically, only to make
@@ -169,10 +169,10 @@ def regplot(x, y, data, model=None, ci=95., scatter_color=None, model_color='k',
     X = np.c_[np.ones(len(_x)), _x]
     G = np.c_[np.ones(len(grid)), grid]
 
-    results = model(_y, X, **kwargs).fit()
+    results = model(_y, X, **model_kws).fit()
 
     def reg_func(xx, yy):
-        yhat = model(yy, xx, **kwargs).fit().predict(G)
+        yhat = model(yy, xx, **model_kws).fit().predict(G)
         return yhat
     yhat = results.predict(G)
     yhat_boots = algo.bootstrap(
@@ -184,8 +184,10 @@ def regplot(x, y, data, model=None, ci=95., scatter_color=None, model_color='k',
     if colorbar:
         cb = plt.colorbar(mappable=sc, cax=cax, ax=ax)
         cb.ax.yaxis.set_ticks_position('right')
-        if hasatter(scatter_color, 'name')
+        if hasattr(scatter_color, 'name'):
             cb.set_label(scatter_color.name)
+        if clabel is not None:
+            cb.set_label(clabel)
 
     if xlabel:
         if isinstance(xlabel, str):
