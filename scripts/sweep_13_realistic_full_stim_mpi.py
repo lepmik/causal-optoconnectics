@@ -184,16 +184,19 @@ if __name__ == '__main__':
 
     for n_neurons in [100, 200, 300, 400, 500]:
         path =  data_path / f'realistic_n{n_neurons}'
-        path.mkdir(exist_ok=True)
-        fname = path / f'rank_{rank}.npz'
         params.update({
             'n_neurons': n_neurons,
             'n_neurons_ex': int(0.8 * n_neurons),
             'n_neurons_in': int(0.2 * n_neurons),
             'n_stim': n_neurons
         })
+        if path.exists():
+            continue
         if rank == 0:
-            connectivity = construct(params, rng=rng)
+            connectivity[path] = construct(params, rng=rng)
+        comm.Barrier()
+        path.mkdir(exist_ok=True)
+        fname = path / f'rank_{rank}.npz'
 
         W, W_0, stimulus, excit_idx, inhib_idx = comm.bcast(connectivity, root=0)
         res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)

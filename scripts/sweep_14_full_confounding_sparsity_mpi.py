@@ -109,8 +109,8 @@ if __name__ == '__main__':
             connectivity[path] = construct(params, rng=rng)
         comm.Barrier()
         (data_path / path).mkdir(exist_ok=True)
-        fname = data_path / path/ f'rank_{rank}.npz'
-        
+        fname = data_path / path / f'rank_{rank}.npz'
+
         connectivity = comm.bcast(connectivity, root=0)
         W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
         res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)

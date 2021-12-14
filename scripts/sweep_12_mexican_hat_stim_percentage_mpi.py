@@ -74,11 +74,13 @@ if __name__ == '__main__':
     for stim_percentage in stim_percentages:
         params['n_stim'] = int(params['n_neurons'] * stim_percentage)
         path =  data_path / f'mex_hat_ns{params["n_stim"]:.2f}'.replace('.','')
-        path.mkdir(exist_ok=True)
-        fname = path / f'rank_{rank}.npz'
-
+        if path.exists():
+            continue
         if rank == 0:
             connectivity[path] = construct(params, rng=rng)
+        comm.Barrier()
+        path.mkdir(exist_ok=True)
+        fname = path / f'rank_{rank}.npz'
 
         connectivity = comm.bcast(connectivity, root=0)
         W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]

@@ -74,11 +74,13 @@ if __name__ == '__main__':
     for recurrence in recurrences:
         params['mex_r'] = recurrence
         path =  data_path / f'mex_hat_r{params["mex_r"]:.2f}'.replace('.','')
-        path.mkdir(exist_ok=True)
-        fname = path / f'rank_{rank}.npz'
-
+        if path.exists():
+            continue
         if rank == 0:
             connectivity[path] = construct(params, rng=rng)
+        comm.Barrier()
+        path.mkdir(exist_ok=True)
+        fname = path / f'rank_{rank}.npz'
 
         connectivity = comm.bcast(connectivity, root=0)
         W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
