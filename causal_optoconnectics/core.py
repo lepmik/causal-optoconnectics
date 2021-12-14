@@ -229,7 +229,7 @@ class Connectivity:
 
         y_response_norefractory = np.divide(self.yzinv_sum, self.zinv_sum)
 
-        # x_refractory = np.divide(self.xz_sum, self.z_sum) # this is set to zero and asserted below
+        x_refractory = np.divide(self.xz_sum, self.z_sum) # this is set to zero and asserted below
 
         x_response_norefractory = np.divide(self.xzinv_sum, self.zinv_sum)
 
@@ -254,7 +254,7 @@ class Connectivity:
         # standard IV
         self.beta_iv = np.divide(
             y_response_norefractory - y_refractory,
-            x_response_norefractory)
+            x_response_norefractory - x_refractory)
         # home brew
         self.beta_brew = y_response_spike - y_refractory
         # OLS
@@ -263,7 +263,7 @@ class Connectivity:
         # DiD iv
         self.beta_iv_did = np.divide(
             (y_response_norefractory - y0_response_norefractory) - (y_refractory - y0_refractory),
-            (x_response_norefractory - x0_response_norefractory) + x0_refractory) # - (x_refractory - x0_refractory)
+            (x_response_norefractory - x0_response_norefractory) - (x_refractory - x0_refractory)) # 
         # DiD brew
         self.beta_brew_did = self.beta_brew - (y0_response - y0_refractory)
         # OLS DiD: y_response_spike - y0_response - (y_nospike - y0_nospike)

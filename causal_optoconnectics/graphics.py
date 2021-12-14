@@ -184,7 +184,8 @@ def regplot(x, y, data, model=None, ci=95., scatter_color=None, model_color='k',
     if colorbar:
         cb = plt.colorbar(mappable=sc, cax=cax, ax=ax)
         cb.ax.yaxis.set_ticks_position('right')
-        if clabel: cb.set_label(clabel)
+        if hasatter(scatter_color, 'name')
+            cb.set_label(scatter_color.name)
 
     if xlabel:
         if isinstance(xlabel, str):
