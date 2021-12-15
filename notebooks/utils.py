@@ -146,32 +146,42 @@ def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None):
     return data_dict
 
 
-def compute_errors(data_path, version=None):
+def rectify_keys(df, keys):
+    result = df.copy()
+    for key in keys:
+        result[key] = df.apply(lambda x: x[key] if x[key] > 0 else 0, axis=1)
+    return result
+
+
+def compute_errors(data_path, version=None, rectify=False, sample=False):
+    keys = [
+        'beta_ols', 'beta_iv', 'beta_brew', 
+        'beta_ols_did', 'beta_iv_did', 'beta_brew_did']
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     errors = {
         'positives': pd.DataFrame({'path': paths}),
         'negatives': pd.DataFrame({'path': paths})
     }
     for i, path in tqdm(enumerate(paths), total=len(paths)):
-        samples = read_csvs(path, version=version)
-        if len(samples) == 0:
+        ranks = read_csvs(path, version=version)
+        if len(ranks) == 0:
             continue
-        sample = reduce_sum(samples)
-        sample = pd.DataFrame([
+        ranksum = reduce_sum(ranks)
+        ranksum = pd.DataFrame([
             compute_connectivity_from_sum(row)
-            for i, row in sample.iterrows()])
-
+            for i, row in ranksum.iterrows()])
+        
         with open(path / 'params.yaml', 'r') as f:
             params = yaml.load(f)
+            
+        ranksum = rectify_keys(ranksum, keys) if rectify else ranksum
         for k, q in zip(['positives', 'negatives'], ['weight>0', 'weight==0']):
-            df = sample.query(q)
-            errors[k].loc[i, params.keys()] = params.values()
-            errors[k].loc[i, 'error_beta_ols_did'] = err_fnc[k](df, 'beta_ols_did')
-            errors[k].loc[i, 'error_beta_iv_did'] = err_fnc[k](df, 'beta_iv_did')
-            errors[k].loc[i, 'error_beta_brew_did'] = err_fnc[k](df, 'beta_brew_did')
-            errors[k].loc[i, 'error_beta_ols'] = err_fnc[k](df, 'beta_ols')
-            errors[k].loc[i, 'error_beta_iv'] = err_fnc[k](df, 'beta_iv')
-            errors[k].loc[i, 'error_beta_brew'] = err_fnc[k](df, 'beta_brew')
+            df = ranksum.query(q)
+            if sample:
+                df = df.sample(sample)
+            errors[k].loc[i, params.keys()] = params.values()  
+            for key in keys:          
+                errors[k].loc[i, 'error_' + key] = err_fnc[k](df, key)
     return errors
 
 
@@ -311,36 +321,19 @@ def plot_errors(errors, key):
         plt.title(k)
         
         
-def plot_error_trials(error_trials, key, alpha=0.5):
+def plot_error_trials(error_trials, keys, alpha=0.5):
     from matplotlib.lines import Line2D
     for k, df in error_trials.items():
         fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
-        steps = df[key].T
-        errors = df[key]
-
-        ax.plot(steps, errors['error_beta_ols_did'].T, color='C0', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_ols_did'].mean(), color='C0')
-
-        ax.plot(steps, errors['error_beta_iv_did'].T, color='C1', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_iv_did'].mean(), color='C1')
-
-        ax.plot(steps, errors['error_beta_brew_did'].T, color='C2', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_brew_did'].mean(), color='C2')
-
-        ax.plot(steps, errors['error_beta_ols'].T, color='C3', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_ols'].mean(), color='C3')
-
-        ax.plot(steps, errors['error_beta_iv'].T, color='C4', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_iv'].mean(), color='C4')
-
-        ax.plot(steps, errors['error_beta_brew'].mean(), color='C5', alpha=alpha)
-        ax.plot(steps[0], errors['error_beta_brew'].mean(), color='C5')
-
-        plt.legend(
-            handles=[Line2D([],[],c=c) for c in ['C0', 'C1', 'C2', 'C3', 'C4', 'C5']],
-            labels=[r'$\hat{\beta}_{OLS,DiD}$', r'$\hat{\beta}_{IV,DiD}$', r'$\hat{\beta}_{BR,DiD}$',
-                    r'$\hat{\beta}_{OLS}$',r'$\hat{\beta}_{IV}$', r'$\hat{\beta}_{BR}$'],
-            frameon=False)
+        for key in keys:
+            steps = df[key]
+            errors = copy.deepcopy(df[key])
+#             errors[key][errors[key]==0] = np.nan
+            color = colors[label(key).lower()]
+            ax.plot(steps.T, errors[key].T, color=color, alpha=alpha)
+            ax.plot(steps[0], np.nanmean(errors[key], axis=0), color=color, label=fr'$\beta_{{{label(key)}}}$')
+            if legend:
+                ax.legend(frameon=False)
         ax.set_xscale('log')
         sns.despine()
         ax.set_xlabel('Trials')
@@ -373,23 +366,15 @@ def plot_error_difference(errors, key):
         plt.title(k)
 
 
-def plot_error_convergence(convergence, index):
+def plot_error_convergence(convergence, index, keys):
+    label = lambda x: ','.join([labels[l] for l in x.split('_')[2:]])
     for k, df in convergence.items():
         fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
         steps = df[index]['n_trials']
         errors = df[index]
-
-        ax.plot(steps, errors['error_beta_ols_did'], label=r'$\hat{\beta}_{OLS,DiD}$', color='C0')
-
-        ax.plot(steps, errors['error_beta_iv_did'], label=r'$\hat{\beta}_{IV,DiD}$', color='C1')
-
-        ax.plot(steps, errors['error_beta_brew_did'], label=r'$\hat{\beta}_{BR,DiD}$', color='C2')
-
-        ax.plot(steps, errors['error_beta_ols'], label=r'$\hat{\beta}_{OLS}$', color='C3')
-
-        ax.plot(steps, errors['error_beta_iv'], label=r'$\hat{\beta}_{IV}$', color='C4')
-
-        ax.plot(steps, errors['error_beta_brew'], label=r'$\hat{\beta}_{BR}$', color='C5')
+        for key in keys:
+            color = colors[label(key).lower()]
+            ax.plot(steps, errors[key], color=color, label=fr'$\beta_{{{label(key)}}}$')
 
         plt.legend(frameon=False)
         ax.set_xscale('log')
@@ -423,13 +408,13 @@ def plot_error_convergence_trials(convergence_trials, index, keys, alpha=0.2, ax
             ax.set_ylabel(r'$Error(w > 0)$' if k=='positives' else fr'$Error(w = 0)$')
 
 
-def plot_regression(samples, index, keys=['beta_ols_did','beta_iv_did','beta_brew_did'], legend=True):
-    df = samples[index].query('weight>0')
-    fig, axs = plt.subplots(1,len(keys),figsize=(4,2.5), dpi=150, sharey=True)
+def plot_regression(df, keys=['beta_ols_did','beta_iv_did','beta_brew_did'], legend=True, rectify=False, **kwargs):
+    df = rectify_keys(df, keys) if rectify else df
+    fig, axs = plt.subplots(1,len(keys),figsize=(4,2.5), dpi=150, sharey=True, sharex=True)
     for i, (ax, key) in enumerate(zip(axs, keys)):
         model = regplot(
             'weight', key, data=df,
-            scatter_color=df['hit_rate'], colorbar=i==len(keys)-1, ax=ax)
+            scatter_color=df['hit_rate'], colorbar=i==len(keys)-1, ax=ax, **kwargs)
         if legend:
             h = plt.Line2D([], [], label='$R^2 = {:.3f}$'.format(model.rsquared), ls='-', color='k')
             ax.legend(handles=[h], frameon=False)
@@ -442,17 +427,19 @@ def plot_regression(samples, index, keys=['beta_ols_did','beta_iv_did','beta_bre
         ax.set_title(fr'$\{ks[0]}_{{{",".join(ks[1:])}}}$')
 
 
-def plot_false_positives(samples, index, keys=['beta_ols_did', 'beta_iv_did', 'beta_brew_did']):
-    df_zero = samples[index].query('weight==0')
+def plot_false_positives(df_zero, keys=['beta_ols_did', 'beta_iv_did', 'beta_brew_did'], scatter_kws=dict(s=5), violin_kws=dict(bw_method=0.5), clabel=None, rectify=False):
+    df_zero = rectify_keys(df_zero, keys) if rectify else df_zero
     fig, ax = plt.subplots(1, 1, figsize=(4,2.5), dpi=150)
     pos = np.random.uniform(.25,.75, size=len(df_zero))
     for i, key in enumerate(keys):
-        sc = ax.scatter(pos + .5 + i, df_zero[key], c=df_zero.hit_rate, s=5)
+        sc = ax.scatter(pos + .5 + i, df_zero[key], c=df_zero.hit_rate, **scatter_kws)
 
     cb = plt.colorbar(mappable=sc, ax=ax)
     cb.ax.yaxis.set_ticks_position('right')
+    if clabel is not None:
+        cb.set_label(clabel)
 
-    violins = plt.violinplot(df_zero.loc[:, keys], showextrema=False, bw_method=0.5)
+    violins = plt.violinplot(df_zero.loc[:, keys], showextrema=False, **violin_kws)
     for pc in violins['bodies']:
         pc.set_facecolor('gray')
         pc.set_edgecolor('k')
