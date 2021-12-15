@@ -46,7 +46,7 @@ if __name__ == '__main__':
     params = {
         'const': 5,
         'n_neurons': 100,
-        'n_stim': 50,
+        'n_stim': 30,
         'dt': 1e-3,
         'ref_scale': 10,
         'abs_ref_scale': 3,
