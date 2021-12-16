@@ -33,7 +33,7 @@ def load(fn):
 
 
 def compute(fn, file_exists, rparams):
-    if fn.with_suffix('.csv').exists()
+    if fn.with_suffix('.csv').exists():
         if file_exists == 'skip':
             return pd.read_csv(fn.with_suffix('.csv'))
         elif file_exists == 'stop':

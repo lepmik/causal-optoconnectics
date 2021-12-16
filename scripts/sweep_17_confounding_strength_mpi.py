@@ -69,24 +69,24 @@ if __name__ == '__main__':
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
         'stim_scale': 2,
-        'stim_strength': None,
+        'stim_strength': 6,
         'stim_period': 50,
         'stim_isi_min': 10,
         'stim_isi_max': 200,
         'drive_scale_ex': 10,
-        'drive_strength_ex': 2,
+        'drive_strength_ex': None,
         'drive_period_ex': 100,
         'drive_isi_min_ex': 30,
         'drive_isi_max_ex': 400,
         'drive_scale_in': 10,
-        'drive_strength_in': -5,
+        'drive_strength_in': None,
         'drive_period_in': 100,
         'drive_isi_min_in': 30,
         'drive_isi_max_in': 400,
         'alpha': 0.2,
         'glorot_normal': {
             'mu': 0,
-            'sigma': None
+            'sigma': 5
         },
         'n_time_step': int(1e6),
         'seed': 12345 + rank
@@ -98,9 +98,9 @@ if __name__ == '__main__':
 
     connectivity = {}
 
-    for excit_conf in inhib_confs:
+    for inhib_conf in inhib_confs:
         for excit_conf in excit_confs:
-            params['drive_strength_in']['sigma'] = excit_conf
+            params['drive_strength_in'] = inhib_conf
             params['drive_strength_ex'] = excit_conf
             path =  f'ec{excit_conf:.1f}_ic{excit_conf:.1f}'.replace('.','')
             if (data_path / path).exists():
