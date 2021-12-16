@@ -12,7 +12,6 @@ from causal_optoconnectics.generator import (
     generate_poisson_stim_times,
     generate_regular_stim_times,
     dales_law_transform,
-    sparsify
 )
 
 def construct(params, rng):
@@ -22,7 +21,7 @@ def construct(params, rng):
         params['stim_isi_min'],
         params['stim_isi_max'],
         params['n_time_step'],
-        rng
+        rng=rng
     )
 
     binned_drive_ex = generate_poisson_stim_times(
@@ -39,14 +38,12 @@ def construct(params, rng):
         params['n_time_step'],
         rng=rng
     )
-
     stimulus = np.concatenate((binned_stim_times, binned_drive_ex, binned_drive_in), 0)
     W_0 = construct_connectivity_matrix(params)
-    W_0 = sparsify(W_0, params['sparsity'], rng=rng)
     W_0 = dales_law_transform(W_0)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_input_filters(
-        W, excit_idx[:params['n_stim']], params['stim_scale'],
+        W, inhib_idx[:params['n_stim']], params['stim_scale'],
         params['stim_strength'])
     W = construct_input_filters(
         W, range(len(W_0)), params['drive_scale_ex'], params['drive_strength_ex'])
@@ -56,7 +53,7 @@ def construct(params, rng):
     return W, W_0, stimulus, excit_idx, inhib_idx
 
 if __name__ == '__main__':
-    data_path = pathlib.Path('datasets/sweep_14')
+    data_path = pathlib.Path('datasets/sweep_16')
     data_path.mkdir(parents=True, exist_ok=True)
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
@@ -72,7 +69,7 @@ if __name__ == '__main__':
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
         'stim_scale': 2,
-        'stim_strength': 5,
+        'stim_strength': None,
         'stim_period': 50,
         'stim_isi_min': 10,
         'stim_isi_max': 200,
@@ -87,39 +84,44 @@ if __name__ == '__main__':
         'drive_isi_min_in': 30,
         'drive_isi_max_in': 400,
         'alpha': 0.2,
-        'sparsity': None,
         'glorot_normal': {
             'mu': 0,
-            'sigma': 7
+            'sigma': None
         },
         'n_time_step': int(1e6),
         'seed': 12345 + rank
     }
+    stim_strengths = [1e-6, 0.5, 1, 2, 3, 4, 5, 6, 7, 8]
+    sigmas = [0.5, 1, 2, 3, 4, 5, 6, 7]
+
     rng = default_rng(params['seed'])
 
-    sparsities = [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
     connectivity = {}
 
-    for sparsity in sparsities:
-        params['sparsity'] = sparsity
-        path =  f'sparsity_{sparsity:.1f}'.replace('.','')
-        if (data_path / path).exists():
-            continue
-        if rank == 0:
-            connectivity[path] = construct(params, rng=rng)
-        comm.Barrier()
-        (data_path / path).mkdir(exist_ok=True)
-        fname = data_path / path / f'rank_{rank}.npz'
+    for stim_strength in stim_strengths:
+        for sigma in sigmas:
+            params['glorot_normal']['sigma'] = sigma
+            params['stim_strength'] = stim_strength
+            path =  f'ss{stim_strength:.2f}_s{sigma}'.replace('.','')
+            if (data_path / path).exists():
+                continue
+            if rank == 0:
+                connectivity[path] = construct(params, rng=rng)
+            comm.Barrier()
+            (data_path / path).mkdir(exist_ok=True)
 
-        connectivity = comm.bcast(connectivity, root=0)
-        W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
-        res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
-        np.savez(
-            fname,
-            data=res,
-            W=W,
-            W_0=W_0,
-            params=params,
-            excitatory_neuron_idx=excit_idx,
-            inhibitory_neuron_idx=inhib_idx
-        )
+            fname = data_path / path/ f'rank_{rank}.npz'
+
+            connectivity = comm.bcast(connectivity, root=0)
+            W, W_0, stimulus, excit_idx, inhib_idx = connectivity[path]
+            res = simulate(W=W, W_0=W_0, inputs=stimulus, params=params, rng=rng)
+
+            np.savez(
+                fname,
+                data=res,
+                W=W,
+                W_0=W_0,
+                params=params,
+                excitatory_neuron_idx=excit_idx,
+                inhibitory_neuron_idx=inhib_idx
+            )
