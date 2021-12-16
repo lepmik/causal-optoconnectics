@@ -28,54 +28,10 @@ colors = {
 
 labels = {'did': 'DiD', 'ols': 'OLS', 'iv':'IV'}
 
+keys = [
+    'beta_ols', 'beta_iv', 'beta_brew', 
+    'beta_ols_did', 'beta_iv_did', 'beta_brew_did']
 
-
-# def violinplot(df, labels, colors, statistics=None):
-#     data = np.array([df.loc[:,label].dropna().to_numpy() for label in labels])
-#     pos = np.array([i * 0.6 for i in range(len(data))])
-#     labels = np.array(labels)
-# #     print(pos)
-#     violins = plt.violinplot(data, pos, showmedians=True, showextrema=False)
-    
-#     for i, b in enumerate(violins['bodies']):
-#         b.set_color(colors[i])
-#         b.set_alpha (0.8)
-
-
-#     for category in ['cbars', 'cmins', 'cmaxes', 'cmedians']:
-#         if category in violins:
-#             violins[category].set_color(['k', 'k'])
-#             violins[category].set_linewidth(2.0)
-#     plt.xticks(pos, labels, rotation=45)
-#     plt.gca().spines['top'].set_visible(False)
-#     plt.gca().spines['right'].set_visible(False)
-
-           
-#     if statistics is not None:
-#         tests = [[0,1], [2,3], [0,2]]
-#         ds = [0,0,1]
-#         for test, d in zip(tests, ds):
-#             pvalue = statistics.loc[' - '.join(labels[test])]
-#             # significance
-#             if pvalue < 0.0001:
-#                 significance = "****"
-#             elif pvalue < 0.001:
-#                 significance = "***"
-#             elif pvalue < 0.01:
-#                 significance = "**"
-#             elif pvalue < 0.05:
-#                 significance = "*"
-#             else:
-#                 significance = "ns"
-
-#             x1, x2 = pos[test]
-#             data_max = np.max([a.max() for a in data[test]])
-#             data_min = np.min([a.min() for a in data[test]])
-#             y = (data_max * 1.05)
-#             h = 0.025 * (data_max - data_min)
-#             d_ =  d * 0.15 * (data_max - data_min)
-#             plt.plot([x1, x1, x2, x2], np.array([y - h, y, y, y - h]) + d_, c='k')
-#             plt.text((x1 + x2) / 2, y + h + d_, significance, ha='center', va='bottom')
 
 def savefig(stem):
     fname = pathlib.Path(f'../paper/graphics/{stem}').with_suffix('.svg')
@@ -112,6 +68,48 @@ def bootstrap_pvalue(case, control, obs_diff, statistic=np.mean, alpha_ci=0.05):
     return pval, low, high, diffs, obs_diff
 
 
+def rectify_keys(df, keys):
+    result = df.copy()
+    for key in keys:
+        result[key] = df.apply(lambda x: x[key] if x[key] > 0 else 0, axis=1)
+    return result
+
+
+def compute_errors(data_path, version=None, rectify=False, sample=False, force_sample=False):
+    paths = [path for path in data_path.iterdir() if path.is_dir()]
+    errors = {
+        'positives': pd.DataFrame({'path': paths}),
+        'negatives': pd.DataFrame({'path': paths})
+    }
+    for i, path in tqdm(enumerate(paths), total=len(paths)):
+        ranks = read_csvs(path, version=version)
+        if len(ranks) == 0:
+            continue
+        ranksum = reduce_sum(ranks)
+        ranksum = pd.DataFrame([
+            compute_connectivity_from_sum(row)
+            for i, row in ranksum.iterrows()])
+        
+        with open(path / 'params.yaml', 'r') as f:
+            params = yaml.load(f)
+            
+        ranksum = rectify_keys(ranksum, keys) if rectify else ranksum
+        for k, q in zip(['positives', 'negatives'], ['weight>0', 'weight==0']):
+            df = ranksum.query(q)
+            if sample:
+                try:
+                    df = df.sample(sample)
+                except Exception as e:
+                    if force_sample:
+                        continue
+                    else:
+                        raise e
+            errors[k].loc[i, params.keys()] = params.values()  
+            for key in keys:          
+                errors[k].loc[i, 'error_' + key] = err_fnc[k](df, key)
+    return errors
+
+
 def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     data_dict = {
@@ -144,45 +142,6 @@ def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None):
         for k1, v1 in v0.items()}
         for k0, v0 in data_dict.items()}
     return data_dict
-
-
-def rectify_keys(df, keys):
-    result = df.copy()
-    for key in keys:
-        result[key] = df.apply(lambda x: x[key] if x[key] > 0 else 0, axis=1)
-    return result
-
-
-def compute_errors(data_path, version=None, rectify=False, sample=False):
-    keys = [
-        'beta_ols', 'beta_iv', 'beta_brew', 
-        'beta_ols_did', 'beta_iv_did', 'beta_brew_did']
-    paths = [path for path in data_path.iterdir() if path.is_dir()]
-    errors = {
-        'positives': pd.DataFrame({'path': paths}),
-        'negatives': pd.DataFrame({'path': paths})
-    }
-    for i, path in tqdm(enumerate(paths), total=len(paths)):
-        ranks = read_csvs(path, version=version)
-        if len(ranks) == 0:
-            continue
-        ranksum = reduce_sum(ranks)
-        ranksum = pd.DataFrame([
-            compute_connectivity_from_sum(row)
-            for i, row in ranksum.iterrows()])
-        
-        with open(path / 'params.yaml', 'r') as f:
-            params = yaml.load(f)
-            
-        ranksum = rectify_keys(ranksum, keys) if rectify else ranksum
-        for k, q in zip(['positives', 'negatives'], ['weight>0', 'weight==0']):
-            df = ranksum.query(q)
-            if sample:
-                df = df.sample(sample)
-            errors[k].loc[i, params.keys()] = params.values()  
-            for key in keys:          
-                errors[k].loc[i, 'error_' + key] = err_fnc[k](df, key)
-    return errors
 
 
 def compute_error_confidence(errors, error_trials):

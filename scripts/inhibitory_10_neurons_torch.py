@@ -98,7 +98,7 @@ if __name__ == '__main__':
         'n_time_step': int(5e6),
         'seed': 12345,
     }
-    num_cores = 10
+    num_cores = 5
     rng = default_rng(params['seed'])
 
     fname =  f'inhib_n10_ss5_s5'
