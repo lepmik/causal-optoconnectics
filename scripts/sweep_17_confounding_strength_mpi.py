@@ -102,7 +102,7 @@ if __name__ == '__main__':
         for excit_conf in excit_confs:
             params['drive_strength_in'] = inhib_conf
             params['drive_strength_ex'] = excit_conf
-            path =  f'ec{excit_conf:.1f}_ic{excit_conf:.1f}'.replace('.','')
+            path =  f'ec{excit_conf:.1f}_ic{inhib_conf:.1f}'.replace('.','')
             if (data_path / path).exists():
                 continue
             if rank == 0:
