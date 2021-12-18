@@ -22,11 +22,15 @@ from causal_optoconnectics.core import Connectivity
 colors = {
     'iv,did': '#e41a1c',
     'iv': '#e41a1c',
+    'brew,did': 'C2',
+    'brew': 'C2',
+    'br,did': 'C2',
+    'br': 'C2',
     'ols,did': '#377eb8',
     'ols': '#377eb8'
 }
 
-labels = {'did': 'DiD', 'ols': 'OLS', 'iv':'IV'}
+labels = {'did': 'DiD', 'ols': 'OLS', 'iv':'IV', 'brew': 'BR'}
 
 keys = [
     'beta_ols', 'beta_iv', 'beta_brew', 
@@ -47,6 +51,61 @@ err_fnc = {
     'positives': lambda x, y: min_error(x, y).fun,
     'negatives': lambda x, y: error_norm(1, x, y)
 }
+
+class Classifier:
+    def __init__(self, df, y):
+        from sklearn import linear_model
+        self.y = y
+        self.df = df.copy()
+        self.df['connected'] = self.df.apply(lambda x: x.weight > 0, axis=1)
+        self.model = linear_model.LogisticRegression(class_weight='balanced', C=1)
+        self.model.fit(self.df[self.y].values.reshape(-1, 1), self.df['connected'].values)
+        self.threshold = - self.model.intercept_ / self.model.coef_[0]
+        self._run_score()
+    
+    def _run_score(self):
+        import sklearn.metrics as sm 
+        y_true = self.df['connected'].values
+        y_pred = self.model.predict(self.df[self.y].values.reshape(-1,1))
+        y_score = self.model.decision_function(self.df[self.y].values.reshape(-1,1))
+        self.score = dict(
+            accuracy = sm.accuracy_score(y_true, y_pred),
+            auc = sm.roc_auc_score(y_true, y_score),
+            recall = sm.recall_score(y_true, y_pred),
+            precision = sm.precision_score(y_true, y_pred),
+            f1 = sm.f1_score(y_true, y_pred),
+            confmat = sm.confusion_matrix(y_true, y_pred, normalize='true')
+        )
+        
+    def plot_confmat(self):
+        print(f'Accuracy Score', self.score['accuracy'])
+        print(f'Area Under Curve', self.score['auc'])
+        print(f'Recall score', self.score['recall'])
+        print(f'Precision score', self.score['precision'])
+        print(f'F1 score', self.score['f1'])
+        
+    def plot_confmat(self, confmat=None):
+        confmat = self.score['confmat'] if confmat is None else confmat
+        tn, fp, fn, tp = confmat.ravel()
+        sns.heatmap(
+            confmat, 
+            annot=np.array([
+                [f'TN\n{tn:.2g}', f'FP\n{fp:.2g}'], 
+                [f'FN\n{fn:.2g}', f'TP\n{tp:.2g}']]), 
+            fmt='')
+        
+    def plot_scatter(self):
+        df[self.y + '_pred_threshold'] = self.df[self.y].values > self.threshold
+        sns.lmplot('weight', # Horizontal axis
+           self.y, # Vertical axis
+           data=self.df, # Data source
+           fit_reg=False, # Don't fix a regression line
+           hue=self.y + '_pred_threshold', # Set color
+           scatter_kws={"marker": "D", # Set marker style
+                        "s": 100}) # S marker size
+
+        plt.xlabel('weight')
+        plt.ylabel(self.y)
 
 def bootstrap_ci(bs_replicates, alpha=0.05):
     low, high = np.percentile(bs_replicates, [(alpha / 2.0) * 100, (1 - alpha / 2.0) * 100])
