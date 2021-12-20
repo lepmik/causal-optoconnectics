@@ -53,14 +53,23 @@ err_fnc = {
 }
 
 class Classifier:
-    def __init__(self, df, y):
+    def __init__(self, df, y, model=None):
         from sklearn import linear_model
         self.y = y
         self.df = df.copy()
         self.df['connected'] = self.df.apply(lambda x: x.weight > 0, axis=1)
-        self.model = linear_model.LogisticRegression(class_weight='balanced', C=1)
-        self.model.fit(self.df[self.y].values.reshape(-1, 1), self.df['connected'].values)
-        self.threshold = - self.model.intercept_ / self.model.coef_[0]
+        
+        
+        if model is None:
+            self.model = linear_model.LogisticRegression(class_weight='balanced', C=1)
+            self.model.fit(self.df[self.y].values.reshape(-1, 1), self.df['connected'].values)
+        if isinstance(model, str):
+            self.load(model)
+        else:
+            assert isinstance(model, sklearn.linear_model._logistic.LogisticRegression)
+            self.model = model
+            
+        self.threshold = - self.model.intercept_ / self.model.coef_[0]           
         self._run_score()
     
     def _run_score(self):
@@ -106,6 +115,15 @@ class Classifier:
 
         plt.xlabel('weight')
         plt.ylabel(self.y)
+        
+    def load(self, fname):
+        from joblib import load
+        self.model = load(pathlib.Path(fname).with_suffix('.joblib'))
+        
+    def save(self, fname):
+        from joblib import dump
+        dump(self.model, pathlib.Path(fname).with_suffix('.joblib')) 
+        
 
 def bootstrap_ci(bs_replicates, alpha=0.05):
     low, high = np.percentile(bs_replicates, [(alpha / 2.0) * 100, (1 - alpha / 2.0) * 100])
