@@ -30,7 +30,7 @@ def construct(params, rng=None):
 
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_input_filters(
-        W, excit_idx[:params['n_stim']], params['stim_scale'],
+        W, inhib_idx[:params['n_stim']], params['stim_scale'],
         params['stim_strength'])
 
     return W, W_0, stimulus, excit_idx, inhib_idx
