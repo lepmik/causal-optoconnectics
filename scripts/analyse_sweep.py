@@ -45,7 +45,7 @@ def compute(fn, file_exists, rparams):
     results_meta = pd.DataFrame(process_metadata(
         range(len(W_0)), range(len(W_0)), W=W, stim_index=stim_index))
     sample_meta = results_meta.query(
-        'source_stim and not target_stim and weight >= 0')
+        f'source_stim and not target_stim and {rparams['target_weight']}')
     neurons = pd.concat((sample_meta.source, sample_meta.target)).unique()
     trials = compute_trials(X, neurons, stim_index)
     sums = pd.DataFrame([process(
@@ -97,11 +97,13 @@ def save(fname, value, file_exists):
 @click.option('-x', type=(int, int), default=(11, 13))
 @click.option('-y', type=(int, int), default=(12, 14))
 @click.option('-z', type=(int, int), default=(9, 11))
+@click.option('--target-weight','-w', default="weight >= 0")
 def main(data_path, file_exists, x, y, z):
     rparams = {
         'x1': x[0], 'x2': x[1],
         'y1': y[0], 'y2': y[1],
         'z1': z[0], 'z2': z[1],
+        'target_weight': target_weight
     }
     data_path = pathlib.Path(data_path).absolute().resolve()
     from functools import reduce
