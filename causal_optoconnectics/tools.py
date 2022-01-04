@@ -356,7 +356,7 @@ def compute_time_dependence(i, j, step=10000):
 
 
 def error(a, df, key):
-    return df['weight'] - a * df[key]
+    return df['weight'] - abs(a) * df[key]
 
 
 def error_norm(a, df, key):

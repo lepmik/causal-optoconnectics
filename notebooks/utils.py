@@ -22,17 +22,15 @@ from causal_optoconnectics.core import Connectivity
 colors = {
     'iv,did': '#e41a1c',
     'iv': '#e41a1c',
-    'brew,did': 'C2',
-    'brew': 'C2',
-    'br,did': 'C2',
-    'br': 'C2',
+    'brew,did': '#984ea3',
+    'br,did': '#984ea3',
     'ols,did': '#377eb8',
-    'ols': '#377eb8'
+    'ols': '#4daf4a'
 }
 
 labels = {'did': 'DiD', 'ols': 'OLS', 'iv':'IV', 'brew': 'BR'}
 
-keys = [
+default_keys = [
     'beta_ols', 'beta_iv', 'beta_brew', 
     'beta_ols_did', 'beta_iv_did', 'beta_brew_did']
 
@@ -54,13 +52,13 @@ err_fnc = {
 }
 
 
-def roc_auc_score(df, y):
-        import sklearn
-        import sklearn.metrics as sm
-        y_true = df.weight > 0
-        sample_weight = sklearn.utils.class_weight.compute_sample_weight('balanced', y_true)
-        y_score = df[y].values
-        return sm.roc_auc_score(y_true, y_score, sample_weight=sample_weight)
+def roc_auc_score(df, y, threshold=0):
+    import sklearn
+    import sklearn.metrics as sm
+    y_true = abs(df.weight) > threshold
+    sample_weight = sklearn.utils.class_weight.compute_sample_weight('balanced', y_true)
+    y_score = df[y].values
+    return sm.roc_auc_score(y_true, y_score, sample_weight=sample_weight)
         
 
 def bootstrap_ci(bs_replicates, alpha=0.05):
@@ -90,7 +88,8 @@ def rectify_keys(df, keys):
     return result
 
 
-def compute_errors(data_path, version=None, rectify=False, sample=False, force_sample=False, target_weights=['weight>0', 'weight==0']):
+def compute_errors(data_path, version=None, rectify=False, sample=False, force_sample=False, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
+    keys = default_keys if keys is None else keys
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     errors = {target_weight: pd.DataFrame({'path': paths}) for target_weight in target_weights}
     for i, path in tqdm(enumerate(paths), total=len(paths)):
@@ -106,7 +105,13 @@ def compute_errors(data_path, version=None, rectify=False, sample=False, force_s
             params = yaml.load(f)
             
         ranksum = rectify_keys(ranksum, keys) if rectify else ranksum
+        
+        if threshold:
+            ranksum.loc[abs(ranksum.weight) < threshold, 'weight'] = 0
+                
         for target_weight in target_weights:
+            errors[target_weight].loc[i, params.keys()] = params.values()
+            
             df = ranksum.query(target_weight)
             if sample:
                 try:
@@ -116,27 +121,31 @@ def compute_errors(data_path, version=None, rectify=False, sample=False, force_s
                         continue
                     else:
                         raise e
-            errors[target_weight].loc[i, params.keys()] = params.values()  
+#             
+
             for key in keys:          
                 errors[target_weight].loc[i, 'error_' + key] = err_fnc[target_weight](df, key)
     return errors
 
 
-def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None, target_weights=['weight>0', 'weight==0']):
+def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
+    keys = default_keys if keys is None else keys
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     data_dict = {target_weight: {i: defaultdict(list) for i in range(len(paths))} for target_weight in target_weights}
     rng = default_rng()
     pbar = tqdm(total=len(paths)*n_iter)
     for i, path in enumerate(paths):
-        samples = read_csvs(path, version=version)
+        ranks = read_csvs(path, version=version)
         for ii in range(n_iter):
-            idxs = rng.choice(len(samples), size=n_samples, replace=False)
-            sample = reduce_sum([samples[j] for j in idxs])
-            sample = pd.DataFrame([
+            idxs = rng.choice(len(ranks), size=n_samples, replace=False)
+            ranksum = reduce_sum([ranks[j] for j in idxs])
+            ranksum = pd.DataFrame([
                 compute_connectivity_from_sum(row)
-                for i, row in sample.iterrows()])
+                for i, row in ranksum.iterrows()])
+            if threshold:
+                ranksum.loc[abs(ranksum.weight) < threshold, 'weight'] = 0
             for target_weight in target_weights:
-                df = sample.query(target_weight)
+                df = ranksum.query(target_weight)
                 for key in keys:
                     data_dict[target_weight][i]['error_' + key].append(err_fnc[target_weight](df, key))
             pbar.update(1)
@@ -180,46 +189,52 @@ def compute_error_confidence(errors, error_trials):
     return errors
 
 
-def compute_error_convergence(data_path, version=None, target_weights=['weight>0', 'weight==0']):
+def compute_error_convergence(data_path, version=None, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
+    keys = default_keys if keys is None else keys
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     n_samples = len(list(paths[0].glob('rank*.csv')))
     convergence = {t: {i: defaultdict(partial(np.empty, n_samples)) for i in range(len(paths))} for t in target_weights}
     pbar = tqdm(total=len(paths)*n_samples)
     for i, path in enumerate(paths):
-        samples = read_csvs(path, version=version)
-        if len(samples) == 0:
+        ranks = read_csvs(path, version=version)
+        if len(ranks) == 0:
             continue
         for ll in range(n_samples):
-            sample = reduce_sum(samples[:ll+1])
-            sample = pd.DataFrame([
+            ranksum = reduce_sum(ranks[:ll+1])
+            ranksum = pd.DataFrame([
                 compute_connectivity_from_sum(row)
-                for i, row in sample.iterrows()]).dropna()
+                for i, row in ranksum.iterrows()]).dropna()
+            if threshold:
+                ranksum.loc[abs(ranksum.weight) < threshold, 'weight'] = 0
             for target_weight in target_weights:
-                df = sample.query(target_weight)
+                df = ranksum.query(target_weight)
                 for key in keys:
                     convergence[target_weight][i]['error_' + key][ll] =  err_fnc[target_weight](df, key)
-                convergence[target_weight][i]['n_trials'][ll] = np.nan if len(sample)==0 else sample.n_trials.values[0]
+                convergence[target_weight][i]['n_trials'][ll] = np.nan if len(ranksum)==0 else ranksum.n_trials.values[0]
             pbar.update(1)
     pbar.close()
     return convergence
 
 
-def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10, version=None, target_weights=['weight>0', 'weight==0']):
+def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10, version=None, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
+    keys = default_keys if keys is None else keys
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     convergence = {t: {i: defaultdict(partial(np.empty, (n_iter, n_samples))) for i in range(len(paths))} for t in target_weights}
     rng = default_rng()
     pbar = tqdm(total=len(paths)*n_iter*n_samples)
     for i, path in enumerate(paths):
-        samples = read_csvs(path, version=version)
+        ranks = read_csvs(path, version=version)
         for ii in range(n_iter):
-            idxs = rng.choice(len(samples), size=n_samples, replace=False)
+            idxs = rng.choice(len(ranks), size=n_samples, replace=False)
             for ll in range(len(idxs)):
-                sample = reduce_sum([samples[j] for j in idxs[:ll+1]])
-                sample = pd.DataFrame([
+                ranksum = reduce_sum([ranks[j] for j in idxs[:ll+1]])
+                ranksum = pd.DataFrame([
                     compute_connectivity_from_sum(row)
-                    for i, row in sample.iterrows()]).dropna()
+                    for i, row in ranksum.iterrows()]).dropna()
+                if threshold:
+                    ranksum.loc[abs(ranksum.weight) < threshold, 'weight'] = 0
                 for target_weight in target_weights:
-                    df = sample.query(target_weight)
+                    df = ranksum.query(target_weight)
                     for key in keys:
                         convergence[target_weight][i]['error_' + key][ii,ll] = err_fnc[target_weight](df, key)
                     convergence[target_weight][i]['n_trials'][ii, ll] = np.nan if len(df)==0 else df.n_trials.values[0]
@@ -242,14 +257,18 @@ def compute_all_samples(data_path, version=None):
     return grand_samples
 
 
-def plot_errors(errors, y):
+def plot_errors(errors, y, keys=None):
+    keys = default_keys if keys is None else keys
     errors = {k: df.sort_values(y) for k, df in errors.items()}
-    label = lambda x: ','.join([labels[l] for l in x.split('_')[2:]])
+    label = lambda x: ','.join([labels[l] for l in x.split('_')[1:]])
     for target_weight, df in errors.items():
-        fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
+        fig, ax = plt.subplots(1,1)
         for key in keys:
-            ax.plot(df[y], df['error_' + key],
-                label=fr'$\hat{{\beta}}_{{{label("error_" + key)}}}$')
+            ax.plot(
+                df[y], df['error_' + key],
+                label=fr'$\hat{{\beta}}_{{{label(key)}}}$',
+                color=colors[label(key).lower()]
+            )
 
         plt.legend(frameon=False)
         sns.despine()
@@ -258,18 +277,19 @@ def plot_errors(errors, y):
         plt.title(target_weight)
         
         
-def plot_error_trials(error_trials, keys, alpha=0.5):
+def plot_error_trials(error_trials, y, keys=None, alpha=0.5):
+    keys = default_keys if keys is None else keys
     from matplotlib.lines import Line2D
-    label = lambda x: ','.join([labels[l] for l in x.split('_')[2:]])
+    label = lambda x: ','.join([labels[l] for l in x.split('_')[1:]])
     for k, df in error_trials.items():
-        fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
+        fig, ax = plt.subplots(1,1)
         for key in keys:
-            steps = df[key]
-            errors = copy.deepcopy(df[key])
+            steps = df[y]
+            errors = copy.deepcopy(df)
 #             errors[key][errors[key]==0] = np.nan
             color = colors[label(key).lower()]
-            ax.plot(steps.T, errors[key].T, color=color, alpha=alpha)
-            ax.plot(steps[0], np.nanmean(errors[key], axis=0), color=color, label=fr'$\beta_{{{label(key)}}}$')
+            ax.plot(steps.T, errors['error_' + key].T, color=color, alpha=alpha)
+            ax.plot(steps[0], np.nanmean(errors['error_' + key], axis=0), color=color, label=fr'$\beta_{{{label(key)}}}$')
             if legend:
                 ax.legend(frameon=False)
         ax.set_xscale('log')
@@ -282,7 +302,7 @@ def plot_error_trials(error_trials, keys, alpha=0.5):
 def plot_error_difference(errors, key):
     errors = {k: df.sort_values(key) for k, df in errors.items()}
     for k, df in errors.items():
-        fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
+        fig, ax = plt.subplots(1,1)
         ax.plot(df[key], df['error_diff_ols_iv_did'],
             label=r'$\mathrm{E}(\hat{\beta}_{OLS,DiD}) - \mathrm{E}(\hat{\beta}_{IV,DiD})$',
             color='C1')
@@ -304,15 +324,16 @@ def plot_error_difference(errors, key):
         plt.title(k)
 
 
-def plot_error_convergence(convergence, index, keys):
-    label = lambda x: ','.join([labels[l] for l in x.split('_')[2:]])
+def plot_error_convergence(convergence, index, keys=None):
+    keys = default_keys if keys is None else keys
+    label = lambda x: ','.join([labels[l] for l in x.split('_')[1:]])
     for k, df in convergence.items():
         fig, ax = plt.subplots(1,1, figsize=(5,5), dpi=150)
         steps = df[index]['n_trials']
         errors = df[index]
         for key in keys:
             color = colors[label(key).lower()]
-            ax.plot(steps, errors[key], color=color, label=fr'$\beta_{{{label(key)}}}$')
+            ax.plot(steps, errors['error_' + key], color=color, label=fr'$\beta_{{{label(key)}}}$')
 
         plt.legend(frameon=False)
         ax.set_xscale('log')
@@ -322,7 +343,8 @@ def plot_error_convergence(convergence, index, keys):
         plt.title(k)
 
 
-def plot_error_convergence_trials(convergence_trials, index, keys, alpha=0.2, axs=None, legend=True, xlabels=[True, True], ylabels=[True, True]):
+def plot_error_convergence_trials(convergence_trials, index, keys=None, alpha=0.2, axs=None, legend=True, xlabels=[True, True], ylabels=[True, True]):
+    keys = default_keys if keys is None else keys
     import copy
     if axs is None:
         fig, axs = plt.subplots(2,1, figsize=(5,5), dpi=150, sharex=True)
@@ -332,6 +354,7 @@ def plot_error_convergence_trials(convergence_trials, index, keys, alpha=0.2, ax
         steps_t = df[index]['n_trials']
         errors_t = copy.deepcopy(df[index])
         for key in keys:
+            key = key if key.startswith('error_') else 'error_' + key
             errors_t[key][errors_t[key]==0] = np.nan
             color = colors[label(key).lower()]
             ax.plot(steps_t.T, errors_t[key].T, color=color, alpha=alpha)
@@ -346,7 +369,8 @@ def plot_error_convergence_trials(convergence_trials, index, keys, alpha=0.2, ax
             ax.set_ylabel(r'$Error(w > 0)$' if k=='positives' else fr'$Error(w = 0)$' if k=='zeroes' else fr'$Error(w < 0)$')
 
 
-def plot_regression(df, keys=['beta_ols_did','beta_iv_did','beta_brew_did'], legend=True, rectify=False, **kwargs):
+def plot_regression(df, keys=None, legend=True, rectify=False, **kwargs):
+    keys = default_keys if keys is None else keys
     df = rectify_keys(df, keys) if rectify else df
     fig, axs = plt.subplots(1,len(keys),figsize=(4,2.5), dpi=150, sharey=True, sharex=True)
     for i, (ax, key) in enumerate(zip(axs, keys)):
@@ -365,7 +389,8 @@ def plot_regression(df, keys=['beta_ols_did','beta_iv_did','beta_brew_did'], leg
         ax.set_title(fr'$\{ks[0]}_{{{",".join(ks[1:])}}}$')
 
 
-def plot_false_positives(df_zero, keys=['beta_ols_did', 'beta_iv_did', 'beta_brew_did'], scatter_kws=dict(s=5), violin_kws=dict(bw_method=0.5), clabel=None, rectify=False):
+def plot_false_positives(df_zero, keys=None, scatter_kws=dict(s=5), violin_kws=dict(bw_method=0.5), clabel=None, rectify=False):
+    keys = default_keys if keys is None else keys
     df_zero = rectify_keys(df_zero, keys) if rectify else df_zero
     fig, ax = plt.subplots(1, 1, figsize=(4,2.5), dpi=150)
     pos = np.random.uniform(.25,.75, size=len(df_zero))
