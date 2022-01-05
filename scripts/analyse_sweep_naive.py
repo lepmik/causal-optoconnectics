@@ -60,12 +60,7 @@ def process(pair, W, stim_index, params, spikes):
     return result
 
 
-def compute(fn, file_exists, rparams):
-    if fn.with_suffix('.csv').exists():
-        if file_exists == 'skip':
-            return pd.read_csv(fn.with_suffix('.csv'))
-        elif file_exists == 'stop':
-            raise OSError(f'File exists, file_exists={file_exists}')
+def compute(fn, rparams):
     X, W_0, W, params = load(fn)
     params.update(rparams)
     stim_index = len(W_0)
@@ -128,17 +123,15 @@ def main(data_path, file_exists, target_weight):
     }
     print("".join([f"{k}: \t{v}\n" for k,v in rparams.items()]))
     data_path = pathlib.Path(data_path).absolute().resolve()
-    from functools import reduce
     print(f'Analyzing {data_path}')
 
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     data_df = pd.DataFrame({'path': paths})
 
-    values = pd.DataFrame()
     iterator = tqdm(data_df.iterrows(), total=len(data_df))
     for i, row in iterator:
         iterator.set_description(row.path.stem)
-        sample = compute(row.path, file_exists=file_exists, rparams=rparams)
+        sample = compute(row.path, rparams=rparams)
 
         save(row.path / 'naive_cch.csv', sample, file_exists)
         data_df.loc[i, 'error_naive_cch'] = min_error(sample, 'naive_cch').fun
