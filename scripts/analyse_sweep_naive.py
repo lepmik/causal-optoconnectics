@@ -60,7 +60,7 @@ def process(pair, W, stim_index, params, spikes):
     return result
 
 
-def compute(fn, rparams):
+def compute(fn, file_exists, rparams):
     X, W_0, W, params = load(fn)
     params.update(rparams)
     stim_index = len(W_0)
@@ -69,14 +69,9 @@ def compute(fn, rparams):
     sample_meta = results_meta.query(
         f'source_stim and not target_stim and {rparams["target_weight"]}')
     spikes = convert_index_to_times(X, params)
-    with multiprocessing.Pool() as p:
-        samples = p.map(
-            partial(
-                process, W=W, stim_index=stim_index, spikes=spikes,
-                params=params),
-            sample_meta.pair.values)
-
-    return pd.DataFrame(samples)
+    
+    samples = pd.DataFrame([process(pair, W=W, stim_index=stim_index, spikes=spikes, params=params) for pair in sample_meta.pair.values])
+    save(fn / 'naive_cch.csv', samples, file_exists)
 
 
 def save(fname, value, file_exists):
@@ -126,17 +121,16 @@ def main(data_path, file_exists, target_weight):
     print(f'Analyzing {data_path}')
 
     paths = [path for path in data_path.iterdir() if path.is_dir()]
-    data_df = pd.DataFrame({'path': paths})
+#     data_df = pd.DataFrame({'path': paths})
 
-    iterator = tqdm(data_df.iterrows(), total=len(data_df))
-    for i, row in iterator:
-        iterator.set_description(row.path.stem)
-        sample = compute(row.path, rparams=rparams)
-
-        save(row.path / 'naive_cch.csv', sample, file_exists)
-        data_df.loc[i, 'error_naive_cch'] = min_error(sample, 'naive_cch').fun
-
-    save(data_path / 'naive_cch_error.csv', data_df, file_exists)
+#     iterator = tqdm(data_df.iterrows(), total=len(data_df))
+#     for i, row in iterator:
+#         iterator.set_description(row.path.stem)
+#         sample = compute(row.path, rparams=rparams)
+    with multiprocessing.Pool() as p:
+        samples = p.map(
+            partial(compute, file_exists=file_exists, rparams=rparams), paths)
+        
 
 if __name__ == '__main__':
     main()

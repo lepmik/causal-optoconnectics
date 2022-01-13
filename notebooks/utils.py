@@ -24,15 +24,17 @@ colors = {
     'iv': '#e41a1c',
     'brew,did': '#984ea3',
     'br,did': '#984ea3',
+    'br': '#984ea3',
     'ols,did': '#377eb8',
-    'ols': '#4daf4a'
+    'ols': '#4daf4a',
+    'cch': '#e6ab02'
 }
 
-labels = {'did': 'DiD', 'ols': 'OLS', 'iv':'IV', 'brew': 'BR'}
+labels = {'did': 'DiD', 'ols': 'OLS', 'iv':'IV', 'brew': 'BR', 'cch': 'CCH', 'br': 'BR'}
 
 default_keys = [
     'beta_ols', 'beta_iv', 'beta_brew', 
-    'beta_ols_did', 'beta_iv_did', 'beta_brew_did']
+    'beta_ols_did', 'beta_iv_did', 'beta_brew_did', 'naive_cch']
 
 
 def savefig(stem):
@@ -88,7 +90,9 @@ def rectify_keys(df, keys):
     return result
 
 
-def compute_errors(data_path, version=None, rectify=False, sample=False, force_sample=False, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
+def compute_errors(
+        data_path, version=None, rectify=False, sample=False, force_sample=False, 
+        target_weights=['weight>0', 'weight==0'], threshold=0, keys=None, naive=True):
     keys = default_keys if keys is None else keys
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     errors = {target_weight: pd.DataFrame({'path': paths}) for target_weight in target_weights}
@@ -108,6 +112,9 @@ def compute_errors(data_path, version=None, rectify=False, sample=False, force_s
         
         if threshold:
             ranksum.loc[abs(ranksum.weight) < threshold, 'weight'] = 0
+            
+        if naive:
+            ranksum = ranksum.merge(pd.read_csv(path / 'naive_cch.csv')[['pair', 'naive_cch']], on='pair')
                 
         for target_weight in target_weights:
             errors[target_weight].loc[i, params.keys()] = params.values()
@@ -128,7 +135,7 @@ def compute_errors(data_path, version=None, rectify=False, sample=False, force_s
     return errors
 
 
-def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
+def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None, naive=True):
     keys = default_keys if keys is None else keys
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     data_dict = {target_weight: {i: defaultdict(list) for i in range(len(paths))} for target_weight in target_weights}
@@ -144,6 +151,8 @@ def compute_error_trials(data_path, n_iter=100, n_samples=150, version=None, tar
                 for i, row in ranksum.iterrows()])
             if threshold:
                 ranksum.loc[abs(ranksum.weight) < threshold, 'weight'] = 0
+            if naive:
+                ranksum = ranksum.merge(pd.read_csv(path / 'naive_cch.csv')[['pair', 'naive_cch']], on='pair')
             for target_weight in target_weights:
                 df = ranksum.query(target_weight)
                 for key in keys:
@@ -191,6 +200,7 @@ def compute_error_confidence(errors, error_trials):
 
 def compute_error_convergence(data_path, version=None, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
     keys = default_keys if keys is None else keys
+    keys = [k for k in keys if not k.startswith('naive')]
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     n_samples = len(list(paths[0].glob('rank*.csv')))
     convergence = {t: {i: defaultdict(partial(np.empty, n_samples)) for i in range(len(paths))} for t in target_weights}
@@ -218,6 +228,7 @@ def compute_error_convergence(data_path, version=None, target_weights=['weight>0
 
 def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10, version=None, target_weights=['weight>0', 'weight==0'], threshold=0, keys=None):
     keys = default_keys if keys is None else keys
+    keys = [k for k in keys if not k.startswith('naive')]
     paths = [path for path in data_path.iterdir() if path.is_dir()]
     convergence = {t: {i: defaultdict(partial(np.empty, (n_iter, n_samples))) for i in range(len(paths))} for t in target_weights}
     rng = default_rng()
@@ -243,18 +254,20 @@ def compute_error_convergence_trials(data_path, n_samples=150, n_iter=10, versio
     return convergence
 
 
-def compute_all_samples(data_path, version=None):
+def compute_all_samples(data_path, version=None, naive=True):
     paths = [path for path in data_path.iterdir() if path.is_dir()]
-    grand_samples = {}
+    ranksums = {}
     for i, path in tqdm(enumerate(paths), total=len(paths)):
-        samples = read_csvs(path, version=version)
-        if len(samples) == 0:
+        rank = read_csvs(path, version=version)
+        if len(rank) == 0:
             continue
-        sample = reduce_sum(samples)
-        grand_samples[i] = pd.DataFrame([
+        ranksum = reduce_sum(rank)
+        ranksums[i] = pd.DataFrame([
             compute_connectivity_from_sum(row)
-            for i, row in sample.iterrows()])
-    return grand_samples
+            for i, row in ranksum.iterrows()])
+        if naive:
+            ranksums[i] = ranksums[i].merge(pd.read_csv(path / 'naive_cch.csv')[['pair', 'naive_cch']], on='pair')
+    return ranksums
 
 
 def plot_errors(errors, y, keys=None):
@@ -366,13 +379,13 @@ def plot_error_convergence_trials(convergence_trials, index, keys=None, alpha=0.
         if xlabels[i]:
             ax.set_xlabel('Trials')
         if ylabels[i]:
-            ax.set_ylabel(r'$Error(w > 0)$' if k=='positives' else fr'$Error(w = 0)$' if k=='zeroes' else fr'$Error(w < 0)$')
+            ax.set_ylabel(r'$Error(w > 0)$' if k=='weight>0' else fr'$Error(w = 0)$' if k=='weight==0' else fr'$Error(w < 0)$')
 
 
 def plot_regression(df, keys=None, legend=True, rectify=False, **kwargs):
     keys = default_keys if keys is None else keys
     df = rectify_keys(df, keys) if rectify else df
-    fig, axs = plt.subplots(1,len(keys),figsize=(4,2.5), dpi=150, sharey=True, sharex=True)
+    fig, axs = plt.subplots(1,len(keys),figsize=(2*len(keys),2.5), dpi=150, sharey=True, sharex=True)
     for i, (ax, key) in enumerate(zip(axs, keys)):
         model = regplot(
             'weight', key, data=df,
@@ -386,7 +399,7 @@ def plot_regression(df, keys=None, legend=True, rectify=False, **kwargs):
             ax.set_ylabel('')
         sns.despine()
         ks = key.split('_')
-        ax.set_title(fr'$\{ks[0]}_{{{",".join(ks[1:])}}}$')
+        ax.set_title(fr'$\beta_{{{",".join(ks[1:])}}}$')
 
 
 def plot_false_positives(df_zero, keys=None, scatter_kws=dict(s=5), violin_kws=dict(bw_method=0.5), clabel=None, rectify=False):
@@ -407,4 +420,4 @@ def plot_false_positives(df_zero, keys=None, scatter_kws=dict(s=5), violin_kws=d
         pc.set_facecolor('gray')
         pc.set_edgecolor('k')
         pc.set_alpha(0.6)
-    plt.xticks(np.arange(len(keys))+1, [fr'$\{key.split("_")[0]}_{{{",".join(key.split("_")[1:])}}}$' for key in keys])
+    plt.xticks(np.arange(len(keys))+1, [fr'$\beta_{{{",".join(key.split("_")[1:])}}}$' for key in keys])
