@@ -356,12 +356,16 @@ def compute_time_dependence(i, j, step=10000):
 
 
 def error(a, df, key):
-    return df['weight'] - abs(a) * df[key]
+    return df[key] - a * df['weight']
 
 
-def error_norm(a, df, key):
-    return norm(error(a, df, key))
+def error_norm(a, df, key, normalize=True):
+    if normalize:
+        # equal to 1 - R^2 from linear regression with zero intercept
+        return sum(error(a, df, key)**2) / sum(df[key]**2) 
+    return sum(error(a, df, key)**2)
 
 
-def min_error(df, key):
-    return minimize_scalar(error_norm, args=(df, key))
+def min_error(df, key, fun=None):
+    fun = error_norm if fun is None else fun
+    return minimize_scalar(fun, args=(df, key), bounds=[0,np.inf])

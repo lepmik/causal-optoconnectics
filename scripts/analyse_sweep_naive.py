@@ -12,7 +12,8 @@ from causal_optoconnectics.tools import min_error, process_metadata
 def load(path):
     data = np.load(path / 'rank_0.npz', allow_pickle=True)
     data = {k: data[k][()] for k in data.keys()}
-    X = [np.load(fn, allow_pickle=True)['data'][()] for fn in path.glob('*.npz')]
+    X = [np.load(fn, allow_pickle=True)['data'][()] for i, fn in enumerate(path.glob('*.npz')) if i<5]
+#     X = [data['data']]
     W_0 = data['W_0']
     W = data['W']
     params = data['params']
@@ -43,7 +44,8 @@ def process(pair, W, stim_index, params, spikes):
         'hollow_fraction': .6,
         'width': 60
     }
-    pre, post = spikes[source], spikes[target]
+    ids = spikes[:, 0]
+    pre, post = spikes[ids==source, 1], spikes[ids==target, 1]
     tr = transfer_probability(pre, post, **trans_prob_params)[0]
 
     result = {
@@ -69,8 +71,11 @@ def compute(fn, file_exists, rparams):
     sample_meta = results_meta.query(
         f'source_stim and not target_stim and {rparams["target_weight"]}')
     spikes = convert_index_to_times(X, params)
-    
-    samples = pd.DataFrame([process(pair, W=W, stim_index=stim_index, spikes=spikes, params=params) for pair in sample_meta.pair.values])
+    with multiprocessing.Pool() as p:
+        samples = p.map(
+            partial(process, W=W, stim_index=stim_index, spikes=spikes, params=params), sample_meta.pair.values)
+    samples = pd.DataFrame(samples)
+#     samples = pd.DataFrame([process(pair, W=W, stim_index=stim_index, spikes=spikes, params=params) for pair in sample_meta.pair.values])
     save(fn / 'naive_cch.csv', samples, file_exists)
 
 
@@ -110,7 +115,7 @@ def save(fname, value, file_exists):
 @click.argument('data_path', type=click.Path(exists=True))
 @click.option('--file-exists', '-f',
               type=click.Choice(['overwrite', 'skip', 'new', 'stop'],
-              case_sensitive=False), default='stop')
+              case_sensitive=False), default='overwrite')
 @click.option('--target-weight','-w', default="weight >= 0")
 def main(data_path, file_exists, target_weight):
     rparams = {
@@ -121,15 +126,15 @@ def main(data_path, file_exists, target_weight):
     print(f'Analyzing {data_path}')
 
     paths = [path for path in data_path.iterdir() if path.is_dir()]
-#     data_df = pd.DataFrame({'path': paths})
+    data_df = pd.DataFrame({'path': paths})
 
-#     iterator = tqdm(data_df.iterrows(), total=len(data_df))
-#     for i, row in iterator:
-#         iterator.set_description(row.path.stem)
-#         sample = compute(row.path, rparams=rparams)
-    with multiprocessing.Pool() as p:
-        samples = p.map(
-            partial(compute, file_exists=file_exists, rparams=rparams), paths)
+    iterator = tqdm(data_df.iterrows(), total=len(data_df))
+    for i, row in iterator:
+        iterator.set_description(row.path.stem)
+        sample = compute(row.path, file_exists=file_exists, rparams=rparams)
+#     with multiprocessing.Pool() as p:
+#         samples = p.map(
+#             partial(compute, file_exists=file_exists, rparams=rparams), paths)
         
 
 if __name__ == '__main__':

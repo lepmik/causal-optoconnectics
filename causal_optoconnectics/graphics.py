@@ -100,7 +100,7 @@ def probplot(prob, sigma=1, xmin=-10, xmax=10, ymin=-10, ymax=10, ax=None, color
 
 def regplot(x, y, data, model=None, ci=95., scatter_color=None, model_color='k', ax=None,
             scatter_kws={}, regplot_kws={}, cmap=None, cax=None, clabel=None,
-            xlabel=True, ylabel=True, colorbar=False, model_kws={}):
+            xlabel=True, ylabel=True, colorbar=False, model_kws={}, fit_intercept=True):
     """Plot data and a linear regression model fit.
 
     This function is adapted from seaborn.regplot, basically, only to make
@@ -165,8 +165,11 @@ def regplot(x, y, data, model=None, ci=95., scatter_color=None, model_color='k',
     _x = data[x]
     _y = data[y]
     grid = np.linspace(_x.min(), _x.max(), 100)
-
-    X = np.c_[np.ones(len(_x)), _x]
+    
+    if fit_intercept:
+        X = np.c_[np.ones(len(_x)), _x]
+    else:
+        X = np.c_[np.zeros(len(_x)), _x]
     G = np.c_[np.ones(len(grid)), grid]
 
     results = model(_y, X, **model_kws).fit()

@@ -49,7 +49,7 @@ def read_csvs(data_path, version=None):
 
 err_fnc = {
     'weight>0': lambda x, y: min_error(x, y).fun,
-    'weight==0': lambda x, y: error_norm(1, x, y),
+    'weight==0': lambda x, y: error_norm(1, x, y, normalize=False),
     'weight<0': lambda x, y: min_error(x, y).fun
 }
 
@@ -389,7 +389,7 @@ def plot_regression(df, keys=None, legend=True, rectify=False, **kwargs):
     for i, (ax, key) in enumerate(zip(axs, keys)):
         model = regplot(
             'weight', key, data=df,
-            scatter_color=df['hit_rate'], colorbar=i==len(keys)-1, ax=ax, **kwargs)
+            scatter_color=df['hit_rate'], colorbar=i==len(keys)-1, ax=ax, fit_intercept=False, **kwargs)
         if legend:
             h = plt.Line2D([], [], label='$R^2 = {:.3f}$'.format(model.rsquared), ls='-', color='k')
             ax.legend(handles=[h], frameon=False)
@@ -421,3 +421,52 @@ def plot_false_positives(df_zero, keys=None, scatter_kws=dict(s=5), violin_kws=d
         pc.set_edgecolor('k')
         pc.set_alpha(0.6)
     plt.xticks(np.arange(len(keys))+1, [fr'$\beta_{{{",".join(key.split("_")[1:])}}}$' for key in keys])
+
+    
+def violin_compare_all(varlist, target_weight, errors, save=None):
+    plt.figure(figsize=(1.5,3.5))
+    key = lambda x: ','.join([labels[l] for l in x.split('_')[2:]])
+    viodf = pd.DataFrame()
+    for var in varlist:
+        v = pd.DataFrame()
+        v['Error'] = errors[target_weight].loc[:, var]
+        v[''] = key(var)
+        viodf = pd.concat([viodf,v])
+    sns.violinplot(
+        data=viodf, x='', y='Error', inner="quart", linewidth=1, cut=0,
+        palette={key(v): colors[key(v).lower()] for v in varlist}
+    )
+    ax = plt.gca()
+    plt.ylabel('$Error(w > 0)$' if target_weight=='weight>0' else '$Error(w = 0)$')
+    ax.set_xticklabels(ax.get_xticklabels(), rotation=45)
+    sns.despine()
+    
+    data_max = np.max(errors[target_weight].loc[:, varlist].values.max())
+    data_min = np.min(errors[target_weight].loc[:, varlist].values.min())
+    compare = [(v1,v2,x1,x2) for x1, v1 in enumerate(varlist) 
+               for x2, v2 in zip(range(x1+1, len(varlist)), varlist[x1+1:])]
+    
+    for v1, v2, x1, x2 in compare:
+        statistic, pvalue = scipy.stats.mannwhitneyu(
+                    errors[target_weight].loc[:, v1],
+                    errors[target_weight].loc[:, v2])
+        # significance
+        if pvalue < 0.0001:
+            significance = "****"
+        elif pvalue < 0.001:
+            significance = "***"
+        elif pvalue < 0.01:
+            significance = "**"
+        elif pvalue < 0.05:
+            significance = "*"
+        else:
+            significance = "ns"
+        d = x1
+
+        y = (data_max * 1.05)
+        h = 0.025 * (data_max - data_min)
+        d_ =  d * 0.17 * (data_max - data_min)
+        plt.plot([x1, x1, x2, x2], np.array([y - h, y, y, y - h]) + d_, c='k')
+        plt.text(x2-.5, y + h + d_, significance, ha='center', va='bottom')
+    if save is not None:
+        savefig(f'{save}_{target_weight}')
