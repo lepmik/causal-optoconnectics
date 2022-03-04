@@ -41,7 +41,6 @@ def construct(params, rng):
     stimulus = np.concatenate(
         (binned_stim_times, binned_drive_ex, binned_drive_in), 0)
     W_0 = construct_connectivity_matrix(params)
-    W_0 = sparsify(W_0, params['sparsity'], rng=rng)
     W_0 = dales_law_transform(W_0)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_input_filters(
@@ -71,7 +70,7 @@ if __name__ == '__main__':
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
         'stim_scale': 2,
-        'stim_strength': 6,
+        'stim_strength': 7,
         'stim_period': 50,
         'stim_isi_min': 10,
         'stim_isi_max': 200,
@@ -86,7 +85,6 @@ if __name__ == '__main__':
         'drive_isi_min_in': 30,
         'drive_isi_max_in': 400,
         'alpha': 0.2,
-        'sparsity': 0.9,
         'glorot_normal': {
             'mu': 0,
             'sigma': 7

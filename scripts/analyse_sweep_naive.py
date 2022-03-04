@@ -5,6 +5,7 @@ import pathlib
 from functools import partial
 import multiprocessing
 import click
+import re
 from causal_optoconnectics.buzsaki import transfer_probability
 from causal_optoconnectics.tools import min_error, process_metadata
 
@@ -63,6 +64,12 @@ def process(pair, W, stim_index, params, spikes):
 
 
 def compute(fn, file_exists, rparams):
+    fn_csv = fn / 'naive_cch.csv'
+    if fn_csv.with_suffix('.csv').exists():
+        if file_exists == 'skip':
+            return 
+        elif file_exists == 'stop':
+            raise OSError(f'File {fn_csv} exists, file_exists={file_exists}')
     X, W_0, W, params = load(fn)
     params.update(rparams)
     stim_index = len(W_0)
@@ -76,7 +83,7 @@ def compute(fn, file_exists, rparams):
             partial(process, W=W, stim_index=stim_index, spikes=spikes, params=params), sample_meta.pair.values)
     samples = pd.DataFrame(samples)
 #     samples = pd.DataFrame([process(pair, W=W, stim_index=stim_index, spikes=spikes, params=params) for pair in sample_meta.pair.values])
-    save(fn / 'naive_cch.csv', samples, file_exists)
+    save(fn_csv, samples, file_exists)
 
 
 def save(fname, value, file_exists):
@@ -117,15 +124,18 @@ def save(fname, value, file_exists):
               type=click.Choice(['overwrite', 'skip', 'new', 'stop'],
               case_sensitive=False), default='overwrite')
 @click.option('--target-weight','-w', default="weight >= 0")
-def main(data_path, file_exists, target_weight):
+@click.option('--exclude-path-stem','-e', default=(), multiple=True)
+def main(data_path, file_exists, target_weight, exclude_path_stem):
     rparams = {
-        'target_weight': target_weight
+        'target_weight': target_weight,
+        'exclude_path_stem': exclude_path_stem
     }
     print("".join([f"{k}: \t{v}\n" for k,v in rparams.items()]))
     data_path = pathlib.Path(data_path).absolute().resolve()
     print(f'Analyzing {data_path}')
 
-    paths = [path for path in data_path.iterdir() if path.is_dir()]
+    paths = [path for path in data_path.iterdir() if path.is_dir() and path.stem not in exclude_path_stem]
+    paths = sorted(paths, key=lambda x: [int(i) for i in re.findall('\\d+', x.stem)])
     data_df = pd.DataFrame({'path': paths})
 
     iterator = tqdm(data_df.iterrows(), total=len(data_df))

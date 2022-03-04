@@ -17,28 +17,19 @@ from causal_optoconnectics.generator import (
 
 def construct(params, rng):
     # set stim
-    binned_stim_times = generate_poisson_stim_times(
+    stimulus = generate_poisson_stim_times(
         params['stim_period'],
         params['stim_isi_min'],
         params['stim_isi_max'],
         params['n_time_step'],
         rng
     )
-
-    binned_drive = generate_regular_stim_times(
-        params['drive_period'],
-        params['n_time_step']
-    )
-    stimulus = np.concatenate((binned_stim_times, binned_drive), 0)
     W_0 = construct_connectivity_matrix(params)
-    W_0 = sparsify(W_0, params['sparsity'], rng=rng)
     W_0 = dales_law_transform(W_0)
     W, excit_idx, inhib_idx = construct_connectivity_filters(W_0, params)
     W = construct_input_filters(
         W, excit_idx[:params['n_stim']], params['stim_scale'],
         params['stim_strength'])
-    W = construct_input_filters(
-        W, range(len(W_0)), params['drive_scale'], params['drive_strength'])
 
     return W, W_0, stimulus, excit_idx, inhib_idx
 
@@ -59,15 +50,11 @@ if __name__ == '__main__':
         'abs_ref_strength': -100,
         'rel_ref_strength': -30,
         'stim_scale': 2,
-        'stim_strength': 6,
+        'stim_strength': 4,
         'stim_period': 50,
         'stim_isi_min': 10,
         'stim_isi_max': 200,
-        'drive_scale': 10,
-        'drive_strength': -100,
-        'drive_period': 100,
         'alpha': 0.2,
-        'sparsity': 0.9,
         'glorot_normal': {
             'mu': 0,
             'sigma': 7

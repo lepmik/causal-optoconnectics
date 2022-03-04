@@ -8,6 +8,7 @@ from functools import partial
 import ruamel.yaml
 import multiprocessing
 import click
+import re
 from causal_optoconnectics.core import Connectivity
 from causal_optoconnectics.tools import (
     compute_trials,
@@ -98,19 +99,22 @@ def save(fname, value, file_exists):
 @click.option('-y', type=(int, int), default=(12, 14))
 @click.option('-z', type=(int, int), default=(9, 11))
 @click.option('--target-weight','-w', default="weight >= 0")
-def main(data_path, file_exists, x, y, z, target_weight):
+@click.option('--exclude-path-stem','-e', default=(), multiple=True)
+def main(data_path, file_exists, x, y, z, target_weight, exclude_path_stem):
     rparams = {
         'x1': x[0], 'x2': x[1],
         'y1': y[0], 'y2': y[1],
         'z1': z[0], 'z2': z[1],
-        'target_weight': target_weight
+        'target_weight': target_weight,
+        'exclude_path_stem': exclude_path_stem
     }
     print("".join([f"{k}: \t{v}\n" for k,v in rparams.items()]))
     data_path = pathlib.Path(data_path).absolute().resolve()
     from functools import reduce
     print(f'Analyzing {data_path}')
 
-    paths = [path for path in data_path.iterdir() if path.is_dir()]
+    paths = [path for path in data_path.iterdir() if path.is_dir() and path.stem not in exclude_path_stem]
+    paths = sorted(paths, key=lambda x: [int(i) for i in re.findall('\\d+', x.stem)])
     data_df = pd.DataFrame({'path': paths})
 
     values = pd.DataFrame()
@@ -127,7 +131,7 @@ def main(data_path, file_exists, x, y, z, target_weight):
         save(row.path / 'params.yaml', params, file_exists)
 
         n_neurons = params['n_neurons']
-
+        params['exclude_path_stem'] = str(params['exclude_path_stem'])
         data_df.loc[i, params.keys()] = params.values()
         if 'glorot_normal' in params:
             data_df.loc[i, 'sigma'] = params['glorot_normal']['sigma']
@@ -155,12 +159,12 @@ def main(data_path, file_exists, x, y, z, target_weight):
             compute_connectivity_from_sum(row)
             for i, row in sample.iterrows()])
         save(row.path / 'sample.csv', sample, file_exists)
-        data_df.loc[i, 'error_beta_ols_did'] = min_error(sample, 'beta_ols_did').fun
-        data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did').fun
-        data_df.loc[i, 'error_beta_brew_did'] = min_error(sample, 'beta_brew_did').fun
-        data_df.loc[i, 'error_beta_ols'] = min_error(sample, 'beta_ols').fun
-        data_df.loc[i, 'error_beta_iv'] = min_error(sample, 'beta_iv').fun
-        data_df.loc[i, 'error_beta_brew'] = min_error(sample, 'beta_brew').fun
+        data_df.loc[i, 'error_beta_ols_did'] = min_error(sample, 'beta_ols_did')
+        data_df.loc[i, 'error_beta_iv_did'] = min_error(sample, 'beta_iv_did')
+        data_df.loc[i, 'error_beta_brew_did'] = min_error(sample, 'beta_brew_did')
+        data_df.loc[i, 'error_beta_ols'] = min_error(sample, 'beta_ols')
+        data_df.loc[i, 'error_beta_iv'] = min_error(sample, 'beta_iv')
+        data_df.loc[i, 'error_beta_brew'] = min_error(sample, 'beta_brew')
 
     data_df.loc[:,'error_diff_ols_iv'] = data_df.error_beta_ols - data_df.error_beta_iv
     data_df.loc[:,'error_diff_ols_brew'] = data_df.error_beta_ols - data_df.error_beta_brew

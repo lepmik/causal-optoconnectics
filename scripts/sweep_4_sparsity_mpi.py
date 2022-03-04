@@ -42,7 +42,7 @@ if __name__ == '__main__':
 
     params = {
         'const': 5,
-        'n_neurons': 50,
+        'n_neurons': 100,
         'n_stim': 5,
         'dt': 1e-3,
         'ref_scale': 10,

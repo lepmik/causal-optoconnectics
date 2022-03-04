@@ -1,0 +1,11 @@
+,Statistic,Pvalue
+error_naive_cch_vs_error_beta_ols,107869.0,0.08790406413916987
+error_naive_cch_vs_error_beta_ols_did,173012.0,2.7382484071996967e-41
+error_naive_cch_vs_error_beta_brew_did,201457.0,1.0878167902615796e-89
+error_naive_cch_vs_error_beta_iv_did,158109.0,1.6993528264534208e-23
+error_beta_ols_vs_error_beta_ols_did,173699.0,3.104678490589642e-42
+error_beta_ols_vs_error_beta_brew_did,203157.0,3.488733495323112e-93
+error_beta_ols_vs_error_beta_iv_did,161522.0,4.107350866338401e-27
+error_beta_ols_did_vs_error_beta_brew_did,178788.0,1.3940498343305524e-49
+error_beta_ols_did_vs_error_beta_iv_did,123478.0,0.053976773037729
+error_beta_brew_did_vs_error_beta_iv_did,69080.0,6.842060099902584e-27

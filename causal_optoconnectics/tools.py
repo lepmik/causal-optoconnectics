@@ -356,16 +356,33 @@ def compute_time_dependence(i, j, step=10000):
 
 
 def error(a, df, key):
-    return df[key] - a * df['weight']
+    return df[key] * a - df['weight']
 
 
-def error_norm(a, df, key, normalize=True):
-    if normalize:
-        # equal to 1 - R^2 from linear regression with zero intercept
-        return sum(error(a, df, key)**2) / sum(df[key]**2) 
-    return sum(error(a, df, key)**2)
+def error_norm(a, df, key):
+    return norm(error(a, df, key))
+
+def unit_vector(vector):
+    return vector / np.linalg.norm(vector)
+
+def angle(v1, v2):
+    v1_u = unit_vector(v1)
+    v2_u = unit_vector(v2)
+    return np.arccos(np.clip(np.dot(v1_u, v2_u), -1.0, 1.0))
+
+def min_error(df, key):
+    return np.sin(angle(df[key].values, df['weight'].values))
 
 
-def min_error(df, key, fun=None):
-    fun = error_norm if fun is None else fun
-    return minimize_scalar(fun, args=(df, key), bounds=[0,np.inf])
+# def min_error(df, key):
+#     min_l2 = minimize_scalar(error_norm, args=(df, key), bounds=[0,np.inf]).fun
+#     return min_l2 / norm(df['weight'])
+
+
+def rsquared(df, key):
+    import statsmodels.api as sm
+    _x = df[key]
+    _y = df['weight']
+    X = np.c_[np.ones(len(_x)), _x]
+    results = sm.OLS(_y, X).fit()
+    return results.rsquared
